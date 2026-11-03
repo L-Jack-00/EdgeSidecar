@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Edge Sidecar Browser Console</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #0ea5e9;
+      --danger: #f43f5e;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 24px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+    }
+    .logo-area { display: flex; align-items: center; gap: 12px; }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+    .badge-success {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      padding: 18px 20px;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .stat-title { font-size: 13px; color: var(--text-muted); }
+    .stat-value { font-size: 26px; font-weight: 700; }
+    .stat-value.danger { color: var(--danger); }
+    .stat-value.accent { color: var(--accent); }
+    .stat-value.success { color: var(--success); }
+
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    .tab-btn:hover { color: var(--text); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .table-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+    th, td { padding: 12px 16px; border-bottom: 1px solid var(--border); }
+    th { background: rgba(0, 0, 0, 0.2); color: var(--text-muted); font-weight: 600; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover { background: rgba(255, 255, 255, 0.02); }
+
+    .tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .tag-blocked { background: rgba(244, 63, 94, 0.2); color: var(--danger); }
+    .tag-modified { background: rgba(56, 189, 248, 0.2); color: var(--accent); }
+    .tag-passed { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+
+    .btn {
+      background: var(--accent);
+      color: #000;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background 0.2s;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn:hover { background: var(--accent-hover); }
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
+    .btn-secondary:hover { background: rgba(255, 255, 255, 0.2); }
+    .btn-danger {
+      background: rgba(244, 63, 94, 0.2);
+      color: var(--danger);
+      border: 1px solid rgba(244, 63, 94, 0.4);
+    }
+    .btn-danger:hover { background: rgba(244, 63, 94, 0.3); }
+
+    .rule-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .rule-info h4 { margin-bottom: 4px; font-size: 15px; }
+    .rule-pattern { font-family: monospace; font-size: 12px; color: var(--text-muted); }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 44px;
+      height: 24px;
+    }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+      background-color: #475569; transition: .2s; border-radius: 24px;
+    }
+    .slider:before {
+      position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px;
+      background-color: white; transition: .2s; border-radius: 50%;
+    }
+    input:checked + .slider { background-color: var(--accent); }
+    input:checked + .slider:before { transform: translateX(20px); }
+
+    .banner {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border: 1px solid var(--border);
+      padding: 24px;
+      border-radius: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+
+    select.custom-select {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #334155;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-area">
+        <h2>🛡️ Edge Sidecar Browser</h2>
+        <span class="badge" id="engine-badge">엔진: 감지 중...</span>
+        <span class="badge badge-success">대용량 스트리밍 보호 가동</span>
+      </div>
+      <div style="display: flex; gap: 10px;">
+        <a href="https://chromewebstore.google.com" target="_blank" class="btn">
+          🧩 크롬 웹스토어 열기
+        </a>
+      </div>
+    </header>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <span class="stat-title">차단된 마이크로소프트 통신</span>
+        <span class="stat-value danger" id="stat-ms-blocked">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-title">실시간 변조 패킷</span>
+        <span class="stat-value accent" id="stat-modified">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-title">총 통과 패킷</span>
+        <span class="stat-value success" id="stat-total">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-title">활성 패킷 규칙</span>
+        <span class="stat-value" id="stat-rules">0</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-title">현재 실행 엔진</span>
+        <span class="stat-value" id="stat-browser-name" style="font-size: 18px; margin-top: 4px; color: var(--accent);">확인 중...</span>
+      </div>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('traffic')">📡 실시간 트래픽 감시</button>
+      <button class="tab-btn" onclick="switchTab('ms')">🛡️ 차단된 MS 서비스 목록</button>
+      <button class="tab-btn" onclick="switchTab('rules')">⚡ 실시간 패킷 규칙 엔진</button>
+      <button class="tab-btn" onclick="switchTab('advanced')">⚙️ 브라우저 엔진 & 보안 관리</button>
+      <button class="tab-btn" onclick="switchTab('extensions')">🧩 크롬 확장 프로그램</button>
+    </div>
+
+    <!-- TAB 1: Live Traffic -->
+    <div id="tab-traffic" class="tab-content active">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th style="width: 80px;">시간</th>
+              <th style="width: 70px;">메서드</th>
+              <th>도메인 및 경로 (URL)</th>
+              <th style="width: 100px;">상태</th>
+              <th style="width: 120px;">사이드카 조치</th>
+            </tr>
+          </thead>
+          <tbody id="traffic-tbody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                브라우징을 시작하면 실시간 트래픽이 여기에 표시됩니다...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: MS Blocked -->
+    <div id="tab-ms" class="tab-content">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>시간</th>
+              <th>차단된 마이크로소프트 엔드포인트</th>
+              <th>유형</th>
+              <th>조치 결과</th>
+            </tr>
+          </thead>
+          <tbody id="ms-tbody">
+            <tr>
+              <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 30px;">
+                차단된 텔레메트리 내역이 실시간으로 기록됩니다.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: Rules -->
+    <div id="tab-rules" class="tab-content">
+      <div style="margin-bottom: 16px;">
+        <p style="color: var(--text-muted); font-size: 14px;">
+          Manifest V3의 제약을 받지 않고 브라우저 외부에서 패킷, 헤더, 바디를 직접 변조합니다.
+        </p>
+      </div>
+      <div id="rules-list"></div>
+    </div>
+
+    <!-- TAB 4: Advanced (Browser Engine & Security) -->
+    <div id="tab-advanced" class="tab-content">
+      <!-- Card: Change Browser Engine -->
+      <div class="banner">
+        <div>
+          <h3 style="margin-bottom: 8px;">🌐 브라우저 기반 엔진 변경</h3>
+          <p style="color: var(--text-muted); font-size: 14px; max-width: 600px;">
+            컴퓨터에 설치된 다른 브라우저(포터블 크로뮴, Edge, Chrome, Brave, Whale)로 자유롭게 교체하여 실행할 수 있습니다.
+          </p>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <select id="browser-engine-select" class="custom-select"></select>
+          <button onclick="applyBrowserEngine()" class="btn">엔진 변경</button>
+        </div>
+      </div>
+
+      <!-- Card: Portable Chromium Management & Auto-Swapper -->
+      <div class="banner" style="border-left: 4px solid var(--accent); background: linear-gradient(135deg, rgba(14,165,233,0.1), #1e293b);">
+        <div style="flex: 1;">
+          <h3 style="margin-bottom: 8px;">🚀 내장 포터블 크로뮴 관리 & 원클릭 최신 엔진 교체 (Auto-Swapper)</h3>
+          <p style="color: var(--text-muted); font-size: 14px; max-width: 650px;">
+            엣지가 없는 컴퓨터에서도 100% 완전 독립 실행되는 내장 크로뮴 엔진입니다. 공식 업스트림 최신 버전을 실시간 감지하여 원클릭으로 최신 엔진으로 교체(갈아끼우기)할 수 있습니다.
+          </p>
+          <div style="margin-top: 10px; font-size: 13px; display: flex; gap: 20px; align-items: center;">
+            <span>현재 엔진: <strong id="portable-current-ver" style="color: var(--accent);">조회 중...</strong></span>
+            <span>최신 릴리즈: <strong id="portable-latest-ver" style="color: #94a3b8;">미확인</strong></span>
+          </div>
+          <div id="portable-progress-box" style="display: none; margin-top: 14px; max-width: 650px;">
+            <div style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+              <div id="portable-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #0ea5e9, #10b981); transition: width 0.3s;"></div>
+            </div>
+            <div id="portable-progress-msg" style="font-size: 12px; color: #38bdf8; margin-top: 6px;">진행 중...</div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; min-width: 190px;">
+          <button onclick="checkPortableUpdate()" class="btn" id="btn-check-update">🔍 최신 버전 확인</button>
+          <button onclick="triggerPortableSwap()" class="btn" id="btn-swap-engine" style="background: var(--accent); color: #000; font-weight: bold;">⚡ 최신 엔진으로 갈아끼우기</button>
+        </div>
+      </div>
+
+      <!-- Card: Disposable Privacy Reset -->
+      <div class="banner" style="background: linear-gradient(135deg, #271a30, #0f172a); border-color: #581c87;">
+        <div>
+          <h3 style="margin-bottom: 8px;">🧹 1회성 세션 흔적 초기화 (Disposable Reset)</h3>
+          <p style="color: var(--text-muted); font-size: 14px; max-width: 600px;">
+            원클릭으로 브라우저의 쿠키, 캐시, 세션 스토리지 흔적을 완전히 소거하여 새 브라우저 상태로 되돌립니다.
+          </p>
+        </div>
+        <div>
+          <button onclick="resetSession()" class="btn btn-danger">세션 흔적 완전 소거</button>
+        </div>
+      </div>
+
+      <!-- Card: Windows Root CA -->
+      <div class="banner">
+        <div>
+          <h3 style="margin-bottom: 8px;">🔐 Windows Root CA 인증서 관리</h3>
+          <p style="color: var(--text-muted); font-size: 14px; max-width: 600px;">
+            Windows 개인 인증서 저장소에 내 로컬 CA를 신뢰 등록하면, 순수 프록시 소켓 단독 모드에서도 보안 경고 없이 모든 HTTPS 트래픽을 완벽하게 통제할 수 있습니다.
+          </p>
+        </div>
+        <div id="ca-action-container">
+          <button id="btn-ca-install" onclick="toggleCA(true)" class="btn">Windows에 신뢰 등록</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 5: Extensions -->
+    <div id="tab-extensions" class="tab-content">
+      <div class="banner">
+        <div>
+          <h3 style="margin-bottom: 8px;">모든 크롬 확장 프로그램 100% 호환</h3>
+          <p style="color: var(--text-muted); font-size: 14px; max-width: 700px;">
+            이 브라우저는 크롬 웹스토어의 모든 확장 프로그램(uBlock Origin, 번역기, 비밀번호 관리자, 테마 등)을 순정 크롬과 동일하게 지원합니다.
+          </p>
+        </div>
+        <a href="https://chromewebstore.google.com" target="_blank" class="btn" style="padding: 12px 20px;">
+          크롬 웹스토어로 이동 ➔
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      event.target.classList.add('active');
+      document.getElementById('tab-' + tabId).classList.add('active');
+      if (tabId === 'rules') loadRules();
+      if (tabId === 'advanced') {
+        checkCAStatus();
+        loadBrowserEngines();
+        loadPortableStatus();
+      }
+    }
+
+    async function updateStats() {
+      try {
+        const res = await fetch('/api/stats');
+        const data = await res.json();
+        document.getElementById('stat-ms-blocked').innerText = data.blocked_ms || 0;
+        document.getElementById('stat-modified').innerText = data.modified || 0;
+        document.getElementById('stat-total').innerText = data.total || 0;
+        document.getElementById('stat-rules').innerText = data.active_rules || 0;
+
+        if (data.active_browser) {
+          document.getElementById('stat-browser-name').innerText = data.active_browser;
+          document.getElementById('engine-badge').innerText = "엔진: " + data.active_browser;
+        }
+      } catch (e) {}
+    }
+
+    async function loadBrowserEngines() {
+      try {
+        const res = await fetch('/api/browser/list');
+        const list = await res.json();
+        const sel = document.getElementById('browser-engine-select');
+        sel.innerHTML = list.map(b => {
+          let label = b.name;
+          if (b.installed) {
+            label += ' (설치됨)';
+          } else {
+            label += ' [미설치]';
+          }
+          return `<option value="${b.id}" ${b.selected ? 'selected' : ''} ${!b.installed ? 'disabled' : ''}>${label}</option>`;
+        }).join('');
+      } catch (e) {}
+    }
+
+    async function applyBrowserEngine() {
+      const sel = document.getElementById('browser-engine-select');
+      const bId = sel.value;
+      await fetch('/api/browser/select?id=' + encodeURIComponent(bId), { method: 'POST' });
+      alert('브라우저 엔진 설정이 저장되었습니다.\n\n다음에 브라우저를 실행할 때 선택한 엔진으로 구동됩니다.');
+      updateStats();
+      loadBrowserEngines();
+    }
+
+    async function updateTraffic() {
+      try {
+        const res = await fetch('/api/traffic');
+        const list = await res.json();
+        if (!list || list.length === 0) return;
+
+        const tbody = document.getElementById('traffic-tbody');
+        tbody.innerHTML = list.slice(0, 50).map(t => {
+          let badge = `<span class="tag tag-passed">통과</span>`;
+          if (t.blocked_ms) badge = `<span class="tag tag-blocked">MS 차단</span>`;
+          else if (t.modified) badge = `<span class="tag tag-modified">규칙 변조</span>`;
+
+          return `
+            <tr>
+              <td style="color: var(--text-muted);">${t.time || ''}</td>
+              <td><strong>${t.method || 'GET'}</strong></td>
+              <td style="word-break: break-all; max-width: 500px;">${t.url || ''}</td>
+              <td>${t.status || 200}</td>
+              <td>${badge}</td>
+            </tr>
+          `;
+        }).join('');
+
+        const msList = list.filter(t => t.blocked_ms);
+        const msTbody = document.getElementById('ms-tbody');
+        if (msList.length > 0) {
+          msTbody.innerHTML = msList.map(t => `
+            <tr>
+              <td style="color: var(--text-muted);">${t.time}</td>
+              <td style="color: var(--danger); font-family: monospace;">${t.url}</td>
+              <td>Microsoft Telemetry / Ping</td>
+              <td><span class="tag tag-blocked">전송 즉시 드롭 (204)</span></td>
+            </tr>
+          `).join('');
+        }
+      } catch (e) {}
+    }
+
+    async function loadRules() {
+      try {
+        const res = await fetch('/api/rules');
+        const rules = await res.json();
+        const container = document.getElementById('rules-list');
+        container.innerHTML = rules.map(r => `
+          <div class="rule-card">
+            <div class="rule-info">
+              <h4>${r.name}</h4>
+              <div class="rule-pattern">적용 대상: <code>${r.url_pattern}</code> | 동작: <strong>${r.action}</strong></div>
+            </div>
+            <div>
+              <label class="switch">
+                <input type="checkbox" ${r.enabled ? 'checked' : ''} onchange="toggleRule('${r.id}')">
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function toggleRule(ruleId) {
+      await fetch('/api/rules/toggle?id=' + encodeURIComponent(ruleId), { method: 'POST' });
+      loadRules();
+      updateStats();
+    }
+
+    async function checkCAStatus() {
+      try {
+        const res = await fetch('/api/ca/status');
+        const data = await res.json();
+        const container = document.getElementById('ca-action-container');
+        if (data.installed) {
+          container.innerHTML = `<button onclick="toggleCA(false)" class="btn btn-danger">Windows에서 신뢰 삭제</button>`;
+        } else {
+          container.innerHTML = `<button onclick="toggleCA(true)" class="btn">Windows에 신뢰 등록</button>`;
+        }
+      } catch (e) {}
+    }
+
+    async function toggleCA(install) {
+      const endpoint = install ? '/api/ca/install' : '/api/ca/uninstall';
+      await fetch(endpoint, { method: 'POST' });
+      await checkCAStatus();
+    }
+
+    async function loadPortableStatus() {
+      try {
+        const res = await fetch('/api/portable/status');
+        const data = await res.json();
+        const curEl = document.getElementById('portable-current-ver');
+        if (data.installed) {
+          curEl.innerHTML = `<span style="color: var(--success); font-weight: 600;">설치됨 (${data.version})</span>`;
+        } else {
+          curEl.innerHTML = `<span style="color: #94a3b8;">미설치 (시스템 브라우저 사용 중)</span>`;
+        }
+      } catch (e) {}
+    }
+
+    let latestPortableInfo = null;
+    async function checkPortableUpdate() {
+      const btn = document.getElementById('btn-check-update');
+      const latestEl = document.getElementById('portable-latest-ver');
+      btn.innerText = '확인 중...';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/portable/check_update');
+        const data = await res.json();
+        latestPortableInfo = data;
+        if (data.success) {
+          if (data.has_update) {
+            latestEl.innerHTML = `<span style="color: var(--success); font-weight: 600;">v${data.latest_version} (${data.download_size_mb} MB) [새 버전]</span>`;
+          } else {
+            latestEl.innerHTML = `<span style="color: var(--accent);">v${data.latest_version} (현재 최신 상태)</span>`;
+          }
+        } else {
+          latestEl.innerText = data.status || '확인 실패';
+        }
+      } catch (e) {
+        latestEl.innerText = '통신 오류';
+      } finally {
+        btn.innerText = '🔍 최신 버전 확인';
+        btn.disabled = false;
+      }
+    }
+
+    let swapPollTimer = null;
+    async function triggerPortableSwap() {
+      if (!confirm('최신 포터블 크로뮴을 다운로드하여 내장 엔진을 최신 버전으로 교체(갈아끼우기)하시겠습니까?')) return;
+      const btn = document.getElementById('btn-swap-engine');
+      btn.disabled = true;
+      const box = document.getElementById('portable-progress-box');
+      const bar = document.getElementById('portable-progress-bar');
+      const msg = document.getElementById('portable-progress-msg');
+      box.style.display = 'block';
+      bar.style.width = '5%';
+      msg.innerText = '엔진 교체 프로세스 시작...';
+
+      try {
+        await fetch('/api/portable/swap', { method: 'POST' });
+        if (swapPollTimer) clearInterval(swapPollTimer);
+        swapPollTimer = setInterval(async () => {
+          try {
+            const res = await fetch('/api/portable/progress');
+            const state = await res.json();
+            bar.style.width = (state.progress || 0) + '%';
+            msg.innerText = state.message || '처리 중...';
+
+            if (state.status === 'done') {
+              clearInterval(swapPollTimer);
+              btn.disabled = false;
+              loadPortableStatus();
+              loadBrowserEngines();
+              updateStats();
+              alert(state.message || '최신 포터블 크로뮴 교체가 완료되었습니다!');
+            } else if (state.status === 'error') {
+              clearInterval(swapPollTimer);
+              btn.disabled = false;
+              alert('엔진 교체 중 오류가 발생했습니다: ' + state.message);
+            }
+          } catch (e) {}
+        }, 800);
+      } catch (e) {
+        btn.disabled = false;
+        alert('요청 실패: ' + e);
+      }
+    }
+
+    async function resetSession() {
+      if (!confirm('쿠키, 캐시, 세션 스토리지 흔적을 완전히 초기화하시겠습니까?')) return;
+      try {
+        await fetch('/api/session/reset', { method: 'POST' });
+        alert('세션 흔적이 깨끗하게 초기화되었습니다.');
+      } catch (e) {
+        alert('초기화 중 오류가 발생했습니다.');
+      }
+    }
+
+    setInterval(() => {
+      updateStats();
+      updateTraffic();
+    }, 1500);
+
+    updateStats();
+    updateTraffic();
+  </script>
+</body>
+</html>

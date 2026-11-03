@@ -1,0 +1,39 @@
+[
+  {
+    "id": "cors-unblocker",
+    "name": "전역 CORS 제한 해제 (Bypass CORS Everywhere)",
+    "enabled": true,
+    "url_pattern": ".*",
+    "action": "modify_response",
+    "add_response_headers": {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+      "Access-Control-Allow-Headers": "*",
+      "Access-Control-Allow-Credentials": "true"
+    },
+    "remove_response_headers": [
+      "content-security-policy",
+      "x-frame-options"
+    ]
+  },
+  {
+    "id": "custom-header-injection",
+    "name": "커스텀 헤더 주입 예시 (Custom Header Injection)",
+    "enabled": false,
+    "url_pattern": ".*",
+    "action": "modify_request",
+    "add_request_headers": {
+      "X-Sidecar-Agent": "EdgeSidecar-v1.0"
+    }
+  },
+  {
+    "id": "mock-api-demo",
+    "name": "특정 API 모킹 예시 (Mock API Demo)",
+    "enabled": false,
+    "url_pattern": "https://api\\.example\\.com/user",
+    "action": "mock_response",
+    "mock_status": 200,
+    "mock_content_type": "application/json; charset=utf-8",
+    "mock_body": "{\"status\": \"success\", \"user\": \"EdgeSidecar Master\", \"role\": \"Root\"}"
+  }
+]

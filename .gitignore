@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+profile/
+test_*profile/
+*.tmp
+*.log
+settings.json
+certs/*.key
+bin/*
+!bin/version.json
+build/
+build_installer_temp/
+dist/
+dist_installer/
