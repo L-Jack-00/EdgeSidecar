@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import os
 import signal
+import subprocess
 import sys
 import time
 
@@ -18,6 +19,16 @@ from proxy_server import start_proxy_server
 from cdp_interceptor import CDPInterceptor
 from launcher import launch_edge
 from config import PROXY_HOST, PROXY_PORT
+
+def kill_process_tree(pid: int):
+    """Forcefully terminates the target process and all descendant processes on Windows."""
+    try:
+        if sys.platform == "win32":
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, check=False)
+        else:
+            os.kill(pid, signal.SIGKILL)
+    except Exception:
+        pass
 
 async def main(profile_name: str = "default"):
     print("=" * 60)
@@ -47,7 +58,7 @@ async def main(profile_name: str = "default"):
 
     print("\n[Supervisor] Engine is fully operational!")
     print(f"👉 대시보드 콘솔: http://127.0.0.1:{PROXY_PORT}/dashboard")
-    print("👉 브라우저를 닫거나 Ctrl+C를 누르면 안전하게 종료됩니다.\n")
+    print("👉 브라우저 창을 닫으면 사이드카 및 백그라운드 서비스가 완전히 종료됩니다.\n")
 
     def sig_handler():
         print("\n[Supervisor] Shutdown signal received.")
@@ -70,7 +81,7 @@ async def main(profile_name: str = "default"):
                 supervisor.emergency_stop()
                 break
 
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.5)
     except (KeyboardInterrupt, asyncio.CancelledError):
         print("\n[Supervisor] Emergency stop triggered.")
         supervisor.emergency_stop()
@@ -84,9 +95,10 @@ async def main(profile_name: str = "default"):
         if edge_proc.poll() is None:
             try:
                 edge_proc.terminate()
-                edge_proc.wait(timeout=3)
+                edge_proc.wait(timeout=2)
             except Exception:
-                edge_proc.kill()
+                pass
+        kill_process_tree(edge_proc.pid)
 
         supervisor.transition_to(HarnessState.STOPPED)
         print("[Supervisor] All services safely terminated.")
@@ -98,5 +110,7 @@ if __name__ == "__main__":
 
     try:
         asyncio.run(main(profile_name=args.profile))
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, SystemExit):
         pass
+    finally:
+        os._exit(0)

@@ -318,6 +318,13 @@ async def handle_dashboard_request(reader: asyncio.StreamReader, writer: asyncio
         await writer.drain()
         return
 
+    if path == "/api/shutdown":
+        resp = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"state\":\"SHUTTING_DOWN\"}"
+        writer.write(resp)
+        await writer.drain()
+        asyncio.get_event_loop().call_later(0.5, supervisor.emergency_stop)
+        return
+
     writer.write(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n")
     await writer.drain()
 

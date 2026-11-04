@@ -4,6 +4,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from typing import List
 
 # Pillar 8: UTF-8 Console Safety Guard
 if hasattr(sys.stdout, "reconfigure"):
@@ -35,8 +36,39 @@ def create_installer_icon() -> QIcon:
     painter.end()
     return QIcon(pixmap)
 
-def create_windows_shortcut(target_exe: Path, shortcut_path: Path, working_dir: Path):
-    """Creates a Windows .lnk shortcut using WScript.Shell."""
+def get_desktop_paths() -> List[Path]:
+    """Finds all active desktop directories including OneDrive redirected desktop."""
+    desktops: List[Path] = []
+    # Standard User Profile Desktop
+    std_desktop = Path(os.path.expandvars(r"%USERPROFILE%\Desktop"))
+    if std_desktop.exists():
+        desktops.append(std_desktop)
+
+    # OneDrive Desktop
+    onedrive_desktop = Path(os.path.expandvars(r"%USERPROFILE%\OneDrive\Desktop"))
+    if onedrive_desktop.exists() and onedrive_desktop not in desktops:
+        desktops.append(onedrive_desktop)
+
+    # Registry lookup for redirected User Shell Folders
+    try:
+        import winreg
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders")
+        val, _ = winreg.QueryValueEx(key, "Desktop")
+        reg_desktop = Path(os.path.expandvars(val))
+        if reg_desktop.exists() and reg_desktop not in desktops:
+            desktops.append(reg_desktop)
+        winreg.CloseKey(key)
+    except Exception:
+        pass
+
+    return desktops
+
+def create_windows_shortcut(target_exe: Path, shortcut_path: Path, working_dir: Path) -> bool:
+    """Creates a Windows .lnk shortcut with automatic fallback to PowerShell."""
+    shortcut_path = Path(shortcut_path)
+    shortcut_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. Try win32com if available
     try:
         import win32com.client
         shell = win32com.client.Dispatch("WScript.Shell")
@@ -47,9 +79,43 @@ def create_windows_shortcut(target_exe: Path, shortcut_path: Path, working_dir: 
         shortcut.IconLocation = f"{target_exe},0"
         shortcut.Save()
         return True
+    except Exception:
+        pass
+
+    # 2. Native PowerShell fallback (built-in, zero external dependencies)
+    try:
+        ps_cmd = (
+            f"$ws = New-Object -COM WScript.Shell; "
+            f"$s = $ws.CreateShortcut('{shortcut_path}'); "
+            f"$s.TargetPath = '{target_exe}'; "
+            f"$s.WorkingDirectory = '{working_dir}'; "
+            f"$s.Description = 'Edge Sidecar Browser'; "
+            f"$s.IconLocation = '{target_exe},0'; "
+            f"$s.Save()"
+        )
+        res = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
+                             capture_output=True, text=True, timeout=5)
+        return res.returncode == 0
     except Exception as e:
         print(f"[Installer] Failed to create shortcut: {e}")
         return False
+
+def register_windows_uninstall(target_dir: Path, exe_path: Path):
+    """Registers application into Windows Add/Remove Programs (Registry)."""
+    try:
+        import winreg
+        key_path = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\EdgeSidecar"
+        with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
+            winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, "Edge Sidecar Browser")
+            winreg.SetValueEx(key, "DisplayVersion", 0, winreg.REG_SZ, "1.3.0")
+            winreg.SetValueEx(key, "Publisher", 0, winreg.REG_SZ, "EdgeSidecar Open Source")
+            winreg.SetValueEx(key, "InstallLocation", 0, winreg.REG_SZ, str(target_dir))
+            winreg.SetValueEx(key, "UninstallString", 0, winreg.REG_SZ, f'"{target_dir}\\uninstall.bat"')
+            winreg.SetValueEx(key, "DisplayIcon", 0, winreg.REG_SZ, f'"{exe_path}",0')
+            winreg.SetValueEx(key, "NoModify", 0, winreg.REG_DWORD, 1)
+            winreg.SetValueEx(key, "NoRepair", 0, winreg.REG_DWORD, 1)
+    except Exception as e:
+        print(f"[Installer] Registry uninstall registration warning: {e}")
 
 class InstallWorker(QThread):
     progress_changed = pyqtSignal(int, str)
@@ -63,10 +129,19 @@ class InstallWorker(QThread):
 
     def run(self):
         try:
-            self.progress_changed.emit(10, "설치 디렉토리 준비 중...")
+            self.progress_changed.emit(10, "실행 중인 프로세스 확인 및 디렉토리 준비 중...")
+            
+            # 1. Close any running EdgeSidecar instances to prevent file lock
+            try:
+                if sys.platform == "win32":
+                    subprocess.run(["taskkill", "/F", "/IM", "EdgeSidecar.exe"], capture_output=True, check=False)
+                    time.sleep(0.5)
+            except Exception:
+                pass
+
             self.target_dir.mkdir(parents=True, exist_ok=True)
 
-            # Determine source directory (frozen vs script)
+            # 2. Determine source directory (frozen payload vs local build)
             if getattr(sys, "frozen", False):
                 src_dir = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent)) / "payload"
                 if not src_dir.exists():
@@ -76,10 +151,10 @@ class InstallWorker(QThread):
                 if not src_dir.exists():
                     src_dir = Path(__file__).parent
 
-            self.progress_changed.emit(30, "프로그램 핵심 파일 복사 중...")
-            time.sleep(0.3)
+            self.progress_changed.emit(30, "프로그램 핵심 실행 파일 복사 중...")
+            time.sleep(0.2)
 
-            # Copy files to target_dir
+            # 3. Copy executable and internal libraries
             if (src_dir / "EdgeSidecar.exe").exists():
                 shutil.copy2(src_dir / "EdgeSidecar.exe", self.target_dir / "EdgeSidecar.exe")
             if (src_dir / "_internal").exists():
@@ -88,41 +163,70 @@ class InstallWorker(QThread):
                     shutil.rmtree(dest_internal, ignore_errors=True)
                 shutil.copytree(src_dir / "_internal", dest_internal)
 
-            # Ensure essential assets
+            # 4. Copy essential config and UI assets
             for extra in ["dashboard.html", "rules.json", "README.md"]:
                 if (src_dir / extra).exists():
                     shutil.copy2(src_dir / extra, self.target_dir / extra)
 
-            # Ensure bin directory exists for portable chromium
-            (self.target_dir / "bin").mkdir(exist_ok=True)
+            self.progress_changed.emit(50, "내장 포터블 크로뮴 엔진 복사 중...")
+            # 5. Fix: Copy bin directory completely (including portable chromium & version.json)
+            src_bin = src_dir / "bin"
+            target_bin = self.target_dir / "bin"
+            if src_bin.exists():
+                if target_bin.exists():
+                    shutil.rmtree(target_bin, ignore_errors=True)
+                shutil.copytree(src_bin, target_bin)
+            else:
+                target_bin.mkdir(exist_ok=True)
 
-            self.progress_changed.emit(70, "바로가기 생성 중...")
+            self.progress_changed.emit(75, "시스템 바로가기 및 환경 설정 중...")
             exe_path = self.target_dir / "EdgeSidecar.exe"
 
-            # Desktop Shortcut
+            # 6. Desktop Shortcut (Supports both Standard & OneDrive Desktop)
             if self.make_desktop and exe_path.exists():
-                desktop = Path(os.path.expandvars(r"%USERPROFILE%\Desktop"))
-                if desktop.exists():
-                    create_windows_shortcut(exe_path, desktop / "Edge Sidecar.lnk", self.target_dir)
+                desktop_dirs = get_desktop_paths()
+                for d in desktop_dirs:
+                    create_windows_shortcut(exe_path, d / "Edge Sidecar.lnk", self.target_dir)
 
-            # Start Menu Shortcut
+            # 7. Start Menu Shortcut
             if self.make_start and exe_path.exists():
                 start_menu = Path(os.path.expandvars(r"%APPDATA%\Microsoft\Windows\Start Menu\Programs"))
                 if start_menu.exists():
                     create_windows_shortcut(exe_path, start_menu / "Edge Sidecar.lnk", self.target_dir)
 
-            # Create clean uninstaller script
+            # 8. Register into Windows Control Panel (Add/Remove Programs)
+            register_windows_uninstall(self.target_dir, exe_path)
+
+            # 9. Create robust uninstaller batch script
             uninstaller_bat = self.target_dir / "uninstall.bat"
             with open(uninstaller_bat, "w", encoding="utf-8") as f:
                 f.write(
                     '@echo off\n'
-                    'echo Edge Sidecar Browser 제거 중...\n'
-                    'timeout /t 2 /nobreak > nul\n'
-                    f'del /f /q "%USERPROFILE%\\Desktop\\Edge Sidecar.lnk" 2>nul\n'
-                    f'del /f /q "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Edge Sidecar.lnk" 2>nul\n'
-                    f'cd ..\n'
-                    f'rmdir /s /q "{self.target_dir}" 2>nul\n'
-                    'echo 제거가 완료되었습니다.\n'
+                    'title Edge Sidecar Browser 제거\n'
+                    'echo ========================================================\n'
+                    'echo   Edge Sidecar Browser 제거를 시작합니다...\n'
+                    'echo ========================================================\n'
+                    '\n'
+                    'echo [*] 실행 중인 프로세스 종료 중...\n'
+                    'taskkill /F /IM EdgeSidecar.exe >nul 2>&1\n'
+                    'timeout /t 1 /nobreak >nul\n'
+                    '\n'
+                    'echo [*] 바로가기 삭제 중...\n'
+                    'del /f /q "%USERPROFILE%\\Desktop\\Edge Sidecar.lnk" >nul 2>&1\n'
+                    'del /f /q "%USERPROFILE%\\OneDrive\\Desktop\\Edge Sidecar.lnk" >nul 2>&1\n'
+                    'del /f /q "%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Edge Sidecar.lnk" >nul 2>&1\n'
+                    '\n'
+                    'echo [*] 윈도우 프로그램 추가/제거 레지스트리 삭제 중...\n'
+                    'reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EdgeSidecar" /f >nul 2>&1\n'
+                    '\n'
+                    'echo [*] 프로그램 파일 삭제 중...\n'
+                    'cd /d "%TEMP%"\n'
+                    'timeout /t 1 /nobreak >nul\n'
+                    f'rmdir /s /q "{self.target_dir}" >nul 2>&1\n'
+                    '\n'
+                    'echo ========================================================\n'
+                    'echo   성공적으로 제거되었습니다.\n'
+                    'echo ========================================================\n'
                     'pause\n'
                 )
 
@@ -134,7 +238,7 @@ class InstallWorker(QThread):
 class InstallerWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Edge Sidecar Browser 설치 마법사 (v1.2.0)")
+        self.setWindowTitle("Edge Sidecar Browser 설치 마법사 (v1.3.0)")
         self.setFixedSize(540, 420)
         self.setWindowIcon(create_installer_icon())
         self.setStyleSheet("""
@@ -187,7 +291,7 @@ class InstallerWindow(QWidget):
         layout.setSpacing(16)
 
         # Header Title
-        title = QLabel("🛡️ Edge Sidecar Browser 설치 마법사")
+        title = QLabel("🛡️ Edge Sidecar Browser 설치 마법사 (v1.3.0)")
         title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         title.setStyleSheet("color: #38bdf8;")
         layout.addWidget(title)
@@ -208,7 +312,7 @@ class InstallerWindow(QWidget):
         layout.addLayout(path_box)
 
         # Options
-        self.chk_desktop = QCheckBox("바탕화면에 바로가기 생성")
+        self.chk_desktop = QCheckBox("바탕화면에 바로가기 생성 (OneDrive 바탕화면 자동 지원)")
         self.chk_desktop.setChecked(True)
         layout.addWidget(self.chk_desktop)
 

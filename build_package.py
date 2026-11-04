@@ -21,7 +21,7 @@ def build():
     print(" [Edge Sidecar Browser] Packaging Distribution (.exe)")
     print("=" * 65)
 
-    # PyInstaller CLI arguments
+    # PyInstaller CLI arguments using sidecar_app.py as clean zero-lingering entry point
     cmd = [
         sys.executable,
         "-m", "PyInstaller",
@@ -34,7 +34,7 @@ def build():
         f"--add-data={PROJECT_DIR / 'rules.json'};.",
         f"--distpath={DIST_DIR}",
         f"--workpath={BUILD_DIR}",
-        str(PROJECT_DIR / "tray_app.py")
+        str(PROJECT_DIR / "sidecar_app.py")
     ]
 
     print("[*] Running PyInstaller build command...")
@@ -48,20 +48,20 @@ def build():
         print(f"[!] Target binary not found: {output_exe}")
         return False
 
-    # Bundle Portable Chromium into dist/EdgeSidecar/bin
+    # Bundle Portable Chromium and version metadata into dist/EdgeSidecar/bin
     src_bin = PROJECT_DIR / "bin"
     target_bin = DIST_DIR / "EdgeSidecar" / "bin"
-    if src_bin.exists() and (src_bin / "chrome.exe").exists():
-        print("[*] Bundling Portable Chromium engine into distribution...")
+    if src_bin.exists():
+        print("[*] Bundling bin directory into distribution...")
         if target_bin.exists():
             shutil.rmtree(target_bin, ignore_errors=True)
         shutil.copytree(src_bin, target_bin)
-        print(f"[*] Portable Chromium bundled at: {target_bin}")
+        print(f"[*] Bundled bin assets at: {target_bin}")
 
     print("\n" + "=" * 65)
     print(" [SUCCESS] Standalone Executable Build Complete!")
     print(f" [*] Output Location: {output_exe}")
-    print(" [*] Everything is bundled: Python interpreter, PyQt6, Cryptography, CDP engine")
+    print(" [*] Zero-lingering architecture: fully terminates when browser window closes.")
     print(" [*] Distributable folder: " + str(DIST_DIR / "EdgeSidecar"))
     print("=" * 65)
     return True

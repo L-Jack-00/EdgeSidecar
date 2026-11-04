@@ -1,11 +1,16 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
 
+ROOT_DIR = Path(SPECPATH).resolve()
 
 a = Analysis(
-    ['C:/Users/SBK/.gemini/antigravity/scratch/edge-sidecar-browser/tray_app.py'],
-    pathex=[],
+    [str(ROOT_DIR / 'sidecar_app.py')],
+    pathex=[str(ROOT_DIR)],
     binaries=[],
-    datas=[('C:/Users/SBK/.gemini/antigravity/scratch/edge-sidecar-browser/dashboard.html', '.'), ('C:/Users/SBK/.gemini/antigravity/scratch/edge-sidecar-browser/rules.json', '.')],
+    datas=[
+        (str(ROOT_DIR / 'dashboard.html'), '.'),
+        (str(ROOT_DIR / 'rules.json'), '.'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

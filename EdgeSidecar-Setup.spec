@@ -1,11 +1,15 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
 
+ROOT_DIR = Path(SPECPATH).resolve()
 
 a = Analysis(
-    ['C:/Users/SBK/.gemini/antigravity/scratch/edge-sidecar-browser/installer_wizard.py'],
-    pathex=[],
+    [str(ROOT_DIR / 'installer_wizard.py')],
+    pathex=[str(ROOT_DIR)],
     binaries=[],
-    datas=[('C:/Users/SBK/.gemini/antigravity/scratch/edge-sidecar-browser/dist/EdgeSidecar', 'payload')],
+    datas=[
+        (str(ROOT_DIR / 'dist' / 'EdgeSidecar'), 'payload'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},

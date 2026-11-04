@@ -238,5 +238,29 @@ class TestEdgeSidecarBrowser(unittest.IsolatedAsyncioTestCase):
         self.assertIn("latest_version", info)
         self.assertTrue(info.get("download_url").startswith("https://"))
 
+    def test_17_zero_lingering_launcher_flags(self):
+        """Verify launcher enforces zero-lingering background termination flags."""
+        import inspect
+        import launcher
+        src = inspect.getsource(launcher.launch_edge)
+        self.assertIn("--disable-background-mode", src)
+        self.assertIn("--no-service-autorun", src)
+
+    def test_18_installer_and_spec_integrity(self):
+        """Verify installer scripts and specs do not contain hardcoded foreign machine paths."""
+        for spec in ["EdgeSidecar.spec", "EdgeSidecar-Setup.spec"]:
+            spec_file = PROJECT_ROOT / spec
+            self.assertTrue(spec_file.exists())
+            content = spec_file.read_text(encoding="utf-8")
+            self.assertNotIn("Users/SBK", content)
+            self.assertIn("ROOT_DIR", content)
+
+        # Verify installer wizard copies bin folder and has registry uninstall registration
+        wizard_file = PROJECT_ROOT / "installer_wizard.py"
+        w_content = wizard_file.read_text(encoding="utf-8")
+        self.assertIn("target_bin", w_content)
+        self.assertIn("register_windows_uninstall", w_content)
+        self.assertIn("get_desktop_paths", w_content)
+
 if __name__ == "__main__":
     unittest.main()

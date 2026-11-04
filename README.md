@@ -49,14 +49,14 @@
 GitHub Releases 페이지에서 내 사용 환경에 맞는 버전을 선택하여 다운로드할 수 있습니다:
 
 ### 1️⃣ [추천] 일반 사용자용 원클릭 설치 파일 (`EdgeSidecar-Setup.exe`)
-* **다운로드**: [`dist_installer/EdgeSidecar-Setup.exe`](file:///C:/Users/SBK/.gemini/antigravity/scratch/edge-sidecar-browser/dist_installer/EdgeSidecar-Setup.exe) (약 275 MB)
+* **다운로드**: [`dist_installer/EdgeSidecar-Setup.exe`](https://github.com/L-Jack-00/EdgeSidecar/releases/download/v1.3.0/EdgeSidecar-Setup.exe) (약 275 MB)
 * **특징**:
   * 파이썬이나 별도 소프트웨어를 설치할 필요가 전혀 없습니다.
   * 더블 클릭 후 **[설치 시작]**만 누르면 윈도우 바탕화면과 시작 메뉴에 예쁜 방패 아이콘 바로가기가 자동 생성됩니다.
   * 포터블 크로뮴 엔진이 기본 탑재되어 있어 순정 PC에서도 바로 동작합니다.
 
 ### 2️⃣ 무설치 포터블 압축 파일 (`EdgeSidecar-v1.3.0-Portable.zip`)
-* **다운로드**: [`dist/EdgeSidecar-v1.3.0-Portable.zip`](file:///C:/Users/SBK/.gemini/antigravity/scratch/edge-sidecar-browser/dist/EdgeSidecar-v1.3.0-Portable.zip) (약 241 MB)
+* **다운로드**: [`dist/EdgeSidecar-v1.3.0-Portable.zip`](https://github.com/L-Jack-00/EdgeSidecar/releases/download/v1.3.0/EdgeSidecar-v1.3.0-Portable.zip) (약 241 MB)
 * **특징**:
   * 시스템 레지스트리를 건드리지 않는 100% 무설치(Clean-room) 패키지입니다.
   * 원하는 폴더나 USB 외장 드라이브에 압축을 푼 뒤 `EdgeSidecar.exe`를 실행하면 즉시 실행됩니다.
@@ -73,8 +73,8 @@ GitHub Releases 페이지에서 내 사용 환경에 맞는 버전을 선택하�
 3. **대시보드 콘솔 확인**:
    * 검은 콘솔창 없이 브라우저와 함께 깔끔한 **사이드카 실시간 대시보드 (`http://127.0.0.1:8899/dashboard`)**가 열립니다.
    * 우측 상단의 `[🛍️ 크롬 웹스토어 열기]` 버튼을 누르면 평소 쓰시던 확장 프로그램을 즉시 설치할 수 있습니다.
-4. **작업표시줄 트레이 아이콘**:
-   * 작업표시줄 우측 하단에 파란색 방패(E) 트레이 아이콘이 상주하며, 우클릭을 통해 언제든지 패킷 통제 일시정지, 엔진 변경, 세션 정리가 가능합니다.
+4. **클린 완전 종료 (Zero-Lingering)**:
+   * 시스템 트레이나 백그라운드에 불필요하게 상주하지 않으며, 브라우저 창을 닫거나 대시보드의 [🛑 완전 종료] 버튼을 누르면 모든 백그라운드 서비스(프록시, 프로세스 트리)가 메모리에서 100% 완전 종료됩니다.
 
 ---
 

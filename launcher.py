@@ -83,6 +83,8 @@ def launch_edge(profile_name: str = "default", headless: bool = False, extra_url
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-search-engine-choice-screen",
+        "--disable-background-mode",
+        "--no-service-autorun",
     ]
 
     if headless:

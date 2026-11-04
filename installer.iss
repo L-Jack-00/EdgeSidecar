@@ -1,10 +1,10 @@
-; Inno Setup Script for Edge Sidecar Browser (v1.1.0)
+; Inno Setup Script for Edge Sidecar Browser (v1.3.0)
 ; ========================================================
 
 #define MyAppName "Edge Sidecar Browser"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.3.0"
 #define MyAppPublisher "EdgeSidecar Open Source"
-#define MyAppURL "https://github.com"
+#define MyAppURL "https://github.com/L-Jack-00/EdgeSidecar"
 #define MyAppExeName "EdgeSidecar.exe"
 
 [Setup]
@@ -19,7 +19,7 @@ DefaultDirName={autopf}\EdgeSidecar
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=dist_installer
-OutputBaseFilename=EdgeSidecar-Setup-v1.1.0
+OutputBaseFilename=EdgeSidecar-Setup-v1.3.0
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

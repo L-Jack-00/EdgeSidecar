@@ -13,7 +13,7 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QObject, pyqtSignal
 from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont, QAction, QActionGroup
 from PyQt6.QtWidgets import (
     QApplication, QSystemTrayIcon, QMenu, QDialog, QVBoxLayout,
@@ -123,11 +123,14 @@ class BrowserSelectDialog(QDialog):
         set_browser_selection(selected_id)
         self.accept()
 
-class SystemTrayApp:
+class SystemTrayApp(QObject):
+    quit_signal = pyqtSignal()
+
     def __init__(self, profile_name: str = "default"):
+        super().__init__()
         self.profile_name = profile_name
         self.app = QApplication(sys.argv)
-        self.app.setQuitOnLastWindowClosed(False)
+        self.quit_signal.connect(self.exit_app)
 
         # Check first launch browser configuration
         settings = load_settings()
@@ -224,7 +227,8 @@ class SystemTrayApp:
         except Exception as e:
             print(f"[TrayApp] Engine thread exited: {e}")
         finally:
-            self.app.quit()
+            # Emit signal to main GUI thread for clean complete shutdown
+            self.quit_signal.emit()
 
     def on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
@@ -249,8 +253,12 @@ class SystemTrayApp:
 
     def exit_app(self):
         supervisor.emergency_stop()
-        self.tray.hide()
+        if hasattr(self, "tray") and self.tray is not None:
+            self.tray.hide()
+            self.tray.deleteLater()
         self.app.quit()
+        # Safety net: ensure completely killed after 0.5s if any thread hangs
+        threading.Timer(0.5, lambda: os._exit(0)).start()
 
     def run(self):
         self.tray.show()

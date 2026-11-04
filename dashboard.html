@@ -217,6 +217,7 @@
         <a href="https://chromewebstore.google.com" target="_blank" class="btn">
           🧩 크롬 웹스토어 열기
         </a>
+        <button class="btn btn-danger" onclick="shutdownSidecar()" title="사이드카와 브라우저 프로세스를 완전히 종료합니다">🛑 완전 종료</button>
       </div>
     </header>
 
@@ -387,6 +388,7 @@
         <a href="https://chromewebstore.google.com" target="_blank" class="btn" style="padding: 12px 20px;">
           크롬 웹스토어로 이동 ➔
         </a>
+        <button class="btn btn-danger" onclick="shutdownSidecar()" title="사이드카와 브라우저 프로세스를 완전히 종료합니다">🛑 완전 종료</button>
       </div>
     </div>
   </div>
@@ -631,6 +633,17 @@
 
     updateStats();
     updateTraffic();
+
+    async function shutdownSidecar() {
+      if (!confirm("Edge Sidecar 브라우저와 모든 백그라운드 서비스를 완전히 종료하시겠습니까?")) return;
+      try {
+        await fetch('/api/shutdown');
+        document.body.innerHTML = "<div style='display:flex;justify-content:center;align-items:center;height:100vh;flex-direction:column;gap:12px;color:#94a3b8;font-family:sans-serif;'><h2>🛡️ Edge Sidecar가 완전히 종료되었습니다.</h2><p>브라우저 탭을 닫으셔도 됩니다.</p></div>";
+        setTimeout(() => window.close(), 1200);
+      } catch (e) {
+        alert("종료 요청 중 오류가 발생했습니다.");
+      }
+    }
   </script>
 </body>
 </html>
