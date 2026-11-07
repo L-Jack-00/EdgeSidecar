@@ -120,7 +120,7 @@ def register_windows_uninstall(target_dir: Path, exe_path: Path):
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\EdgeSidecar"
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
             winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, "Edge Sidecar Browser")
-            winreg.SetValueEx(key, "DisplayVersion", 0, winreg.REG_SZ, "1.3.1")
+            winreg.SetValueEx(key, "DisplayVersion", 0, winreg.REG_SZ, "1.3.2")
             winreg.SetValueEx(key, "Publisher", 0, winreg.REG_SZ, "EdgeSidecar Open Source")
             winreg.SetValueEx(key, "InstallLocation", 0, winreg.REG_SZ, str(target_dir))
             winreg.SetValueEx(key, "UninstallString", 0, winreg.REG_SZ, f'"{target_dir}\\uninstall.bat"')
@@ -134,11 +134,12 @@ class InstallWorker(QThread):
     progress_changed = pyqtSignal(int, str)
     finished = pyqtSignal(bool, str)
 
-    def __init__(self, target_dir: Path, make_desktop: bool, make_start: bool):
+    def __init__(self, target_dir: Path, make_desktop: bool, make_start: bool, make_default: bool = True):
         super().__init__()
         self.target_dir = target_dir
         self.make_desktop = make_desktop
         self.make_start = make_start
+        self.make_default = make_default
 
     def run(self):
         try:
@@ -215,7 +216,16 @@ class InstallWorker(QThread):
             # 8. Register into Windows Control Panel (Add/Remove Programs)
             register_windows_uninstall(self.target_dir, exe_path)
 
-            # 9. Create robust uninstaller batch script
+            # 9. Register as Windows Default Browser if selected
+            if self.make_default and exe_path.exists():
+                self.progress_changed.emit(85, "시스템 기본 웹 브라우저 등록 중...")
+                try:
+                    from default_browser import register_default_browser
+                    register_default_browser(exe_path)
+                except Exception as e:
+                    print(f"[Installer] Default browser registration error: {e}")
+
+            # 10. Create robust uninstaller batch script
             uninstaller_bat = self.target_dir / "uninstall.bat"
             with open(uninstaller_bat, "w", encoding="utf-8") as f:
                 f.write(
@@ -237,6 +247,12 @@ class InstallWorker(QThread):
                     'echo [*] 윈도우 프로그램 추가/제거 레지스트리 삭제 중...\n'
                     'reg delete "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\EdgeSidecar" /f >nul 2>&1\n'
                     '\n'
+                    'echo [*] 윈도우 기본 브라우저 연동 레지스트리 삭제 중...\n'
+                    'reg delete "HKCU\\Software\\Clients\\StartMenuInternet\\EdgeSidecar" /f >nul 2>&1\n'
+                    'reg delete "HKCU\\Software\\Classes\\EdgeSidecarHTML" /f >nul 2>&1\n'
+                    'reg delete "HKCU\\Software\\Classes\\Applications\\EdgeSidecar.exe" /f >nul 2>&1\n'
+                    'reg delete "HKCU\\Software\\RegisteredApplications" /v "EdgeSidecar" /f >nul 2>&1\n'
+                    '\n'
                     'echo [*] 프로그램 파일 삭제 중...\n'
                     'cd /d "%TEMP%"\n'
                     'timeout /t 1 /nobreak >nul\n'
@@ -256,8 +272,8 @@ class InstallWorker(QThread):
 class InstallerWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Edge Sidecar Browser 설치 마법사 (v1.3.1)")
-        self.setFixedSize(540, 420)
+        self.setWindowTitle("Edge Sidecar Browser 설치 마법사 (v1.3.2)")
+        self.setFixedSize(540, 450)
         self.setWindowIcon(create_installer_icon())
         self.setStyleSheet("""
             QWidget {
@@ -309,7 +325,7 @@ class InstallerWindow(QWidget):
         layout.setSpacing(16)
 
         # Header Title
-        title = QLabel("🛡️ Edge Sidecar Browser 설치 마법사 (v1.3.1)")
+        title = QLabel("🛡️ Edge Sidecar Browser 설치 마법사 (v1.3.2)")
         title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         title.setStyleSheet("color: #38bdf8;")
         layout.addWidget(title)
@@ -337,6 +353,10 @@ class InstallerWindow(QWidget):
         self.chk_start = QCheckBox("시작 메뉴에 등록")
         self.chk_start.setChecked(True)
         layout.addWidget(self.chk_start)
+
+        self.chk_default = QCheckBox("Windows 기본 웹 브라우저로 등록 (외부 프로그램 링크 연결 지원)")
+        self.chk_default.setChecked(True)
+        layout.addWidget(self.chk_default)
 
         # Progress bar
         self.lbl_status = QLabel("준비됨")
@@ -372,7 +392,8 @@ class InstallerWindow(QWidget):
         self.worker = InstallWorker(
             target_dir=target_dir,
             make_desktop=self.chk_desktop.isChecked(),
-            make_start=self.chk_start.isChecked()
+            make_start=self.chk_start.isChecked(),
+            make_default=self.chk_default.isChecked()
         )
         self.worker.progress_changed.connect(self.on_progress)
         self.worker.finished.connect(self.on_finished)
@@ -384,9 +405,23 @@ class InstallerWindow(QWidget):
 
     def on_finished(self, success, result):
         if success:
+            if self.chk_default.isChecked():
+                try:
+                    from default_browser import open_default_apps_settings
+                    open_default_apps_settings()
+                except Exception:
+                    pass
+
+            msg = (
+                "Edge Sidecar Browser 설치가 성공적으로 완료되었습니다!\n\n"
+                "외부 프로그램(카카오톡, 디스코드, 노션 등)에서 링크를 클릭했을 때 "
+                "EdgeSidecar로 바로 열리도록 방금 열린 Windows [기본 앱] 설정 창에서 "
+                "기본 웹 브라우저를 [EdgeSidecar]로 지정해 주세요.\n\n"
+                "지금 프로그램을 실행하시겠습니까?"
+            )
             reply = QMessageBox.question(
                 self, "설치 완료",
-                "Edge Sidecar Browser 설치가 성공적으로 완료되었습니다!\n\n지금 프로그램을 실행하시겠습니까?",
+                msg,
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.Yes
             )

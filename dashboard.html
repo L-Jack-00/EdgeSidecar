@@ -311,6 +311,24 @@
 
     <!-- TAB 4: Advanced (Browser Engine & Security) -->
     <div id="tab-advanced" class="tab-content">
+      <!-- Card: Windows Default Browser Registration -->
+      <div class="banner" style="border-left: 4px solid #10b981; background: linear-gradient(135deg, rgba(16,185,129,0.1), #1e293b);">
+        <div style="flex: 1;">
+          <h3 style="margin-bottom: 8px;">🚀 Windows 기본 웹 브라우저 (메인 브라우저 연동)</h3>
+          <p style="color: var(--text-muted); font-size: 14px; max-width: 650px;">
+            카카오톡, 디스코드, 노션, 슬랙 등 외부 프로그램에서 링크를 클릭했을 때 기본 Edge 대신 EdgeSidecar로 바로 열리도록 시스템 기본 웹 브라우저로 등록합니다.
+          </p>
+          <div style="margin-top: 10px; font-size: 13px; display: flex; gap: 20px; align-items: center; flex-wrap: wrap;">
+            <span>등록 상태: <strong id="def-browser-registered" style="color: #94a3b8;">조회 중...</strong></span>
+            <span>시스템 기본 앱 지정: <strong id="def-browser-active" style="color: #94a3b8;">조회 중...</strong></span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 8px; min-width: 210px;">
+          <button onclick="registerAsDefaultBrowser()" class="btn" id="btn-register-default" style="background: #10b981; color: #000; font-weight: bold;">⭐ 기본 브라우저로 등록 및 설정</button>
+          <button onclick="openWindowsDefaultApps()" class="btn btn-secondary">⚙️ Windows 기본 앱 설정 열기</button>
+        </div>
+      </div>
+
       <!-- Card: Change Browser Engine -->
       <div class="banner">
         <div>
@@ -435,6 +453,7 @@
           loadBrowserEngines();
           loadPortableStatus();
           loadCDPStatus();
+          fetchDefaultBrowserStatus();
         }
       } catch (e) {
         console.error('Tab switch init error:', e);
@@ -606,6 +625,57 @@
       await checkCAStatus();
     }
 
+    async function fetchDefaultBrowserStatus() {
+      try {
+        const res = await fetch('/api/default_browser/status');
+        const data = await res.json();
+        const regEl = document.getElementById('def-browser-registered');
+        const actEl = document.getElementById('def-browser-active');
+        if (data.registered) {
+          regEl.innerHTML = `<span style="color: var(--success); font-weight: 600;">✅ 시스템 브라우저 목록에 등록됨</span>`;
+        } else {
+          regEl.innerHTML = `<span style="color: var(--warning); font-weight: 600;">⚠️ 미등록 (등록 필요)</span>`;
+        }
+
+        if (data.is_default) {
+          actEl.innerHTML = `<span style="color: var(--success); font-weight: 600;">🎯 현재 Windows 기본 브라우저로 작동 중</span>`;
+        } else {
+          actEl.innerHTML = `<span style="color: #94a3b8;">순정 Edge 또는 다른 브라우저로 지정됨</span>`;
+        }
+      } catch (e) {
+        console.error('Failed to fetch default browser status:', e);
+      }
+    }
+
+    async function registerAsDefaultBrowser() {
+      const btn = document.getElementById('btn-register-default');
+      btn.innerText = '등록 처리 중...';
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/default_browser/register', { method: 'POST' });
+        const data = await res.json();
+        if (data.registered) {
+          alert('✅ EdgeSidecar가 Windows 기본 브라우저 목록에 등록되었습니다!\n\n열린 Windows [기본 앱] 설정 창에서 기본 웹 브라우저를 [EdgeSidecar]로 선택해 주세요.');
+          await fetchDefaultBrowserStatus();
+        } else {
+          alert('등록 중 오류가 발생했습니다.');
+        }
+      } catch (e) {
+        alert('요청 실패: ' + e);
+      } finally {
+        btn.innerText = '⭐ 기본 브라우저로 등록 및 설정';
+        btn.disabled = false;
+      }
+    }
+
+    async function openWindowsDefaultApps() {
+      try {
+        await fetch('/api/default_browser/open_settings', { method: 'POST' });
+      } catch (e) {
+        alert('Windows 설정 창 열기 실패: ' + e);
+      }
+    }
+
     async function loadPortableStatus() {
       try {
         const res = await fetch('/api/portable/status');
@@ -705,6 +775,7 @@
 
     updateStats();
     updateTraffic();
+    fetchDefaultBrowserStatus();
 
     async function shutdownSidecar() {
       if (!confirm("Edge Sidecar 브라우저와 모든 백그라운드 서비스를 완전히 종료하시겠습니까?")) return;

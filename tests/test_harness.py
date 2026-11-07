@@ -268,5 +268,62 @@ class TestEdgeSidecarBrowser(unittest.IsolatedAsyncioTestCase):
         self.assertIn("register_windows_uninstall", w_content)
         self.assertIn("get_desktop_paths", w_content)
 
+    def test_19_default_browser_registration(self):
+        """Verify Windows Default Browser registration, status check, and unregistration."""
+        import default_browser
+        # Clean state first
+        default_browser.unregister_default_browser()
+        status = default_browser.get_browser_status()
+        self.assertFalse(status["registered"])
+
+        # Test registration
+        ok = default_browser.register_default_browser()
+        self.assertTrue(ok)
+        self.assertTrue(default_browser.is_registered_as_browser())
+
+        # Test status API representation
+        status_after = default_browser.get_browser_status()
+        self.assertTrue(status_after["registered"])
+        self.assertEqual(status_after["prog_id"], "EdgeSidecarHTML")
+
+        # Cleanup
+        default_browser.unregister_default_browser()
+        self.assertFalse(default_browser.is_registered_as_browser())
+
+    async def test_20_proxy_single_instance_and_browser_apis(self):
+        """Verify /api/ping, /api/default_browser/status and /api/open single-instance APIs."""
+        test_port = 9877
+        server = await start_proxy_server("127.0.0.1", test_port)
+        try:
+            # 1. Test Ping API
+            r, w = await asyncio.open_connection("127.0.0.1", test_port)
+            w.write(b"GET /api/ping HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+            await w.drain()
+            resp = await r.read()
+            w.close()
+            self.assertIn(b"200 OK", resp)
+            self.assertIn(b"EdgeSidecar", resp)
+
+            # 2. Test Default Browser Status API
+            r, w = await asyncio.open_connection("127.0.0.1", test_port)
+            w.write(b"GET /api/default_browser/status HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+            await w.drain()
+            resp = await r.read()
+            w.close()
+            self.assertIn(b"200 OK", resp)
+            self.assertIn(b"registered", resp)
+
+            # 3. Test Open URL API (Mocked URL)
+            r, w = await asyncio.open_connection("127.0.0.1", test_port)
+            w.write(b"GET /api/open?url=https%3A%2F%2Fexample.com HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+            await w.drain()
+            resp = await r.read()
+            w.close()
+            self.assertIn(b"200 OK", resp)
+            self.assertIn(b"example.com", resp)
+        finally:
+            server.close()
+            await server.wait_closed()
+
 if __name__ == "__main__":
     unittest.main()

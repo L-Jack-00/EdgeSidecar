@@ -110,12 +110,12 @@ def launch_edge(profile_name: str = "default", headless: bool = False, extra_url
     if headless:
         args.append("--headless=new")
 
-    # Only open dashboard on launch (User requested removing Chrome Web Store auto-open)
-    urls = [
-        f"http://127.0.0.1:{PROXY_PORT}/dashboard"
-    ]
-    if extra_urls:
-        urls.extend(extra_urls)
+    # URL determination: If extra_urls are provided (e.g. from external link clicks), open them.
+    # Otherwise open dashboard by default.
+    if extra_urls and len(extra_urls) > 0:
+        urls = list(extra_urls)
+    else:
+        urls = [f"http://127.0.0.1:{PROXY_PORT}/dashboard"]
 
     args.extend(urls)
 

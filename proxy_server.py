@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import json
 import re
+import subprocess
 import sys
 from pathlib import Path
 from typing import Dict, Any, List
@@ -20,6 +21,24 @@ from harness_core import supervisor, HarnessState
 from portable_engine import portable_manager
 from browser_detector import scan_all_browsers, set_browser_selection, resolve_selected_browser, is_cdp_enabled, set_cdp_enabled
 import cert_manager
+import default_browser
+
+CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+
+def open_url_in_running_browser(target_url: str) -> bool:
+    """Invokes browser single-instance mechanism to open URL in existing window."""
+    try:
+        from launcher import setup_isolated_profile
+        browser_bin, _ = resolve_selected_browser()
+        profile_path = setup_isolated_profile("default")
+        subprocess.Popen(
+            [browser_bin, f"--user-data-dir={profile_path}", target_url],
+            creationflags=CREATE_NO_WINDOW
+        )
+        return True
+    except Exception as e:
+        print(f"[Proxy] Error opening URL {target_url} in running browser: {e}")
+        return False
 
 DASHBOARD_HTML_PATH = RESOURCE_DIR / "dashboard.html"
 if not DASHBOARD_HTML_PATH.exists():
@@ -189,6 +208,85 @@ async def handle_dashboard_request(reader: asyncio.StreamReader, writer: asyncio
             b"Content-Length: 15\r\n"
             b"Connection: close\r\n\r\n"
             b'{"status":"ok"}'
+        )
+        writer.write(resp)
+        await writer.drain()
+        return
+
+    if path == "/api/ping":
+        data = json.dumps({"status": "ok", "app": "EdgeSidecar", "version": "1.3.2"}).encode("utf-8")
+        resp = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Access-Control-Allow-Origin: *\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + data
+        )
+        writer.write(resp)
+        await writer.drain()
+        return
+
+    if path.startswith("/api/open"):
+        import urllib.parse
+        m = re.search(r"[?&]url=([^&]+)", path)
+        target_url = None
+        if m:
+            target_url = urllib.parse.unquote(m.group(1))
+        
+        opened = False
+        if target_url:
+            opened = open_url_in_running_browser(target_url)
+        
+        data = json.dumps({"status": "ok" if opened else "error", "opened": target_url}).encode("utf-8")
+        resp = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Access-Control-Allow-Origin: *\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + data
+        )
+        writer.write(resp)
+        await writer.drain()
+        return
+
+    if path == "/api/default_browser/status":
+        data = json.dumps(default_browser.get_browser_status()).encode("utf-8")
+        resp = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Access-Control-Allow-Origin: *\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + data
+        )
+        writer.write(resp)
+        await writer.drain()
+        return
+
+    if path == "/api/default_browser/register":
+        ok = default_browser.register_default_browser()
+        if ok:
+            default_browser.open_default_apps_settings()
+        data = json.dumps({"status": "ok" if ok else "error", "registered": ok}).encode("utf-8")
+        resp = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Access-Control-Allow-Origin: *\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + data
+        )
+        writer.write(resp)
+        await writer.drain()
+        return
+
+    if path == "/api/default_browser/open_settings":
+        ok = default_browser.open_default_apps_settings()
+        data = json.dumps({"status": "ok" if ok else "error"}).encode("utf-8")
+        resp = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Access-Control-Allow-Origin: *\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + data
         )
         writer.write(resp)
         await writer.drain()

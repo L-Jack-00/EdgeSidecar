@@ -38,14 +38,14 @@ def kill_process_tree(pid: int):
     except Exception:
         pass
 
-async def main(profile_name: str = "default"):
+async def main(profile_name: str = "default", urls: list = None):
     print("=" * 60)
-    print("🛡️  EDGE SIDECAR BROWSER (v1.3.1)")
+    print("🛡️  EDGE SIDECAR BROWSER (v1.3.2)")
     print(f" - 프로필 모드: [{profile_name.upper()}]")
     print(" - 패킷 통제 엔진: 실시간 헤더/본문 변조 & Manifest V3 탈피")
     print(" - 마이크로소프트 텔레메트리/블로트웨어 원천 차단 (Zero Telemetry)")
     print(" - 모든 크롬 확장 프로그램 100% 네이티브 호환")
-    print(" - 대용량 파일 스트리밍 메모리 안전 가드 가동")
+    print(" - 윈도우 기본 웹 브라우저 & 외부 링크 단일 인스턴스 연동")
     print("=" * 60)
 
     supervisor.transition_to(HarnessState.INITIALIZING)
@@ -54,8 +54,8 @@ async def main(profile_name: str = "default"):
     server = await start_proxy_server(PROXY_HOST, PROXY_PORT)
     supervisor.transition_to(HarnessState.PROXY_READY)
 
-    # 2. Launch Microsoft Edge with chosen isolated profile
-    edge_proc = launch_edge(profile_name=profile_name, headless=False)
+    # 2. Launch Microsoft Edge with chosen isolated profile and optional external URLs
+    edge_proc = launch_edge(profile_name=profile_name, headless=False, extra_urls=urls)
     supervisor.transition_to(HarnessState.EDGE_RUNNING)
     print(f"[Supervisor] Microsoft Edge launched (PID={edge_proc.pid})")
 
@@ -119,10 +119,60 @@ async def main(profile_name: str = "default"):
         supervisor.transition_to(HarnessState.STOPPED)
         print("[Supervisor] All services safely terminated.")
 
+def try_forward_to_running_instance(urls: list) -> bool:
+    """Checks if EdgeSidecar is already running on PROXY_PORT. If so, forwards URLs and returns True."""
+    import urllib.request
+    import urllib.parse
+    try:
+        req = urllib.request.Request(
+            f"http://{PROXY_HOST}:{PROXY_PORT}/api/ping",
+            headers={"User-Agent": "EdgeSidecar-Forwarder"}
+        )
+        with urllib.request.urlopen(req, timeout=0.4) as resp:
+            if resp.status == 200:
+                # Running instance found! Forward URLs
+                target_urls = urls if (urls and len(urls) > 0) else [f"http://{PROXY_HOST}:{PROXY_PORT}/dashboard"]
+                for u in target_urls:
+                    encoded = urllib.parse.quote(u, safe="")
+                    open_req = urllib.request.Request(f"http://{PROXY_HOST}:{PROXY_PORT}/api/open?url={encoded}")
+                    try:
+                        urllib.request.urlopen(open_req, timeout=1.0)
+                    except Exception:
+                        pass
+                return True
+    except Exception:
+        pass
+    return False
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Edge Sidecar Browser Master")
+    parser.add_argument("urls", nargs="*", default=[], help="Optional URLs to open")
     parser.add_argument("--profile", default="default", choices=["default", "developer", "isolated"], help="Profile preset")
+    parser.add_argument("--register-browser", action="store_true", help="Register EdgeSidecar as Windows default browser")
+    parser.add_argument("--unregister-browser", action="store_true", help="Unregister EdgeSidecar from Windows")
+    parser.add_argument("--open-settings", action="store_true", help="Open Windows Default Apps settings")
     args = parser.parse_args()
+
+    # Browser registration CLI commands
+    if args.register_browser:
+        from default_browser import register_default_browser, open_default_apps_settings
+        if register_default_browser():
+            open_default_apps_settings()
+        sys.exit(0)
+
+    if args.unregister_browser:
+        from default_browser import unregister_default_browser
+        unregister_default_browser()
+        sys.exit(0)
+
+    if args.open_settings:
+        from default_browser import open_default_apps_settings
+        open_default_apps_settings()
+        sys.exit(0)
+
+    # Single-Instance check: If an instance is already running, forward URLs to it and exit cleanly
+    if try_forward_to_running_instance(args.urls):
+        sys.exit(0)
 
     # First launch: prompt for browser engine selection if not configured yet
     try:
@@ -132,7 +182,7 @@ if __name__ == "__main__":
         print(f"[Supervisor] First-run prompt skipped: {e}")
 
     try:
-        asyncio.run(main(profile_name=args.profile))
+        asyncio.run(main(profile_name=args.profile, urls=args.urls))
     except (KeyboardInterrupt, SystemExit):
         pass
     finally:

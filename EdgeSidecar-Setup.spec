@@ -11,7 +11,7 @@ a = Analysis(
         (str(ROOT_DIR / 'dist' / 'EdgeSidecar'), 'payload'),
         (str(ROOT_DIR / 'app.ico'), '.'),
     ],
-    hiddenimports=[],
+    hiddenimports=['default_browser'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],

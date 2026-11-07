@@ -12,7 +12,7 @@ a = Analysis(
         (str(ROOT_DIR / 'rules.json'), '.'),
         (str(ROOT_DIR / 'app.ico'), '.'),
     ],
-    hiddenimports=[],
+    hiddenimports=['default_browser'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
