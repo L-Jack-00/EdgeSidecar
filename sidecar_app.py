@@ -54,6 +54,16 @@ async def main(profile_name: str = "default", urls: list = None):
     server = await start_proxy_server(PROXY_HOST, PROXY_PORT)
     supervisor.transition_to(HarnessState.PROXY_READY)
 
+    # Socket Warm-up Guard: Guarantee proxy server is actively accepting connections before Edge starts
+    for _ in range(30):
+        try:
+            _, w = await asyncio.open_connection(PROXY_HOST, PROXY_PORT)
+            w.close()
+            await w.wait_closed()
+            break
+        except Exception:
+            await asyncio.sleep(0.05)
+
     # 2. Launch Microsoft Edge with chosen isolated profile and optional external URLs
     edge_proc = launch_edge(profile_name=profile_name, headless=False, extra_urls=urls)
     supervisor.transition_to(HarnessState.EDGE_RUNNING)

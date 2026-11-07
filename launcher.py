@@ -94,8 +94,9 @@ def launch_edge(profile_name: str = "default", headless: bool = False, extra_url
 
     args.extend([
         f"--proxy-server=http://127.0.0.1:{PROXY_PORT}",
-        # Zero Bloatware & Telemetry flags
-        "--disable-features=msEdgeSidebarV2,msHub,msHubApps,msEdgeShoppingAssistant,msEdgeCollections,EdgeAssetDelivery,msVisualSearch,msEdgeInlineCompose,msEdgeFre,msDefaultSearchEngineGroupPolicy,msEdgeDiscoverButton",
+        "--proxy-bypass-list=<-loopback>",
+        # Zero Bloatware & Telemetry flags & Instant Proxy Resolution
+        "--disable-features=WinHttpProxyResolver,msEdgeSidebarV2,msHub,msHubApps,msEdgeShoppingAssistant,msEdgeCollections,EdgeAssetDelivery,msVisualSearch,msEdgeInlineCompose,msEdgeFre,msDefaultSearchEngineGroupPolicy,msEdgeDiscoverButton",
         "--disable-sync",
         "--disable-background-networking",
         "--no-first-run",

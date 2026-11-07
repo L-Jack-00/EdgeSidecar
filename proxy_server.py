@@ -599,7 +599,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
             pass
 
 async def start_proxy_server(host=PROXY_HOST, port=PROXY_PORT):
-    server = await asyncio.start_server(handle_client, host, port)
+    server = await asyncio.start_server(handle_client, host, port, reuse_address=True)
     print(f"[Sidecar Proxy] Running on http://{host}:{port}")
     print(f"[Sidecar Proxy] Dashboard available at http://{host}:{port}/dashboard")
     return server
