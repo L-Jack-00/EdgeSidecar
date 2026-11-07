@@ -21,20 +21,15 @@ def build():
     print(" [Edge Sidecar Browser] Packaging Distribution (.exe)")
     print("=" * 65)
 
-    # PyInstaller CLI arguments using sidecar_app.py as clean zero-lingering entry point
+    # Build using EdgeSidecar.spec directly to preserve portable ROOT_DIR resolution
     cmd = [
         sys.executable,
         "-m", "PyInstaller",
-        "--name=EdgeSidecar",
-        "--noconsole",          # Hide black console window
-        "--onedir",             # _internal directory isolation
         "--clean",
         "--noconfirm",
-        f"--add-data={PROJECT_DIR / 'dashboard.html'};.",
-        f"--add-data={PROJECT_DIR / 'rules.json'};.",
         f"--distpath={DIST_DIR}",
         f"--workpath={BUILD_DIR}",
-        str(PROJECT_DIR / "sidecar_app.py")
+        str(PROJECT_DIR / "EdgeSidecar.spec")
     ]
 
     print("[*] Running PyInstaller build command...")

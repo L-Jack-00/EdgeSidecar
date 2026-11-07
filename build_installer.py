@@ -32,15 +32,11 @@ def build_installer():
     cmd = [
         sys.executable,
         "-m", "PyInstaller",
-        "--name=EdgeSidecar-Setup",
-        "--noconsole",
-        "--onefile",
         "--clean",
         "--noconfirm",
-        f"--add-data={DIST_DIR};payload",
         f"--distpath={INSTALLER_DIST}",
         f"--workpath={WORK_DIR}",
-        str(PROJECT_DIR / "installer_wizard.py")
+        str(PROJECT_DIR / "EdgeSidecar-Setup.spec")
     ]
 
     print("[*] Compiling installer executable with PyInstaller...")

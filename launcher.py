@@ -85,6 +85,7 @@ def launch_edge(profile_name: str = "default", headless: bool = False, extra_url
         "--disable-search-engine-choice-screen",
         "--disable-background-mode",
         "--no-service-autorun",
+        "--extension-mime-request-handling=always-prompt-for-install",
     ]
 
     if headless:
