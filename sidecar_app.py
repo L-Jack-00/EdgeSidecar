@@ -21,11 +21,18 @@ from launcher import launch_edge
 from browser_detector import is_cdp_enabled
 from config import PROXY_HOST, PROXY_PORT
 
+CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+
 def kill_process_tree(pid: int):
-    """Forcefully terminates the target process and all descendant processes on Windows."""
+    """Forcefully terminates the target process and all descendant processes on Windows without console flashing."""
     try:
         if sys.platform == "win32":
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, check=False)
+            subprocess.run(
+                ["taskkill", "/F", "/T", "/PID", str(pid)],
+                capture_output=True,
+                check=False,
+                creationflags=CREATE_NO_WINDOW
+            )
         else:
             os.kill(pid, signal.SIGKILL)
     except Exception:

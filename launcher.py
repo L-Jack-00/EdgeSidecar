@@ -58,10 +58,23 @@ def setup_isolated_profile(profile_key: str = "default") -> Path:
         },
         "sync": {
             "has_setup_completed": False
+        },
+        "ntp": {
+            "num_personal_suggestions": 0
         }
     }
 
-    if not pref_file.exists():
+    if pref_file.exists():
+        try:
+            with open(pref_file, "r", encoding="utf-8") as f:
+                existing = json.load(f)
+            existing.setdefault("edge", {}).setdefault("webstore", {})["allowed"] = True
+            existing.setdefault("ntp", {})["num_personal_suggestions"] = 0
+            with open(pref_file, "w", encoding="utf-8") as f:
+                json.dump(existing, f, indent=2)
+        except Exception:
+            pass
+    else:
         with open(pref_file, "w", encoding="utf-8") as f:
             json.dump(prefs, f, indent=2)
 
@@ -90,6 +103,7 @@ def launch_edge(profile_name: str = "default", headless: bool = False, extra_url
         "--disable-search-engine-choice-screen",
         "--disable-background-mode",
         "--no-service-autorun",
+        "--disable-ntp-popular-sites",
         "--extension-mime-request-handling=always-prompt-for-install",
     ])
 

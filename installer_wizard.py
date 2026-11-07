@@ -21,7 +21,19 @@ from PyQt6.QtWidgets import (
     QPushButton, QLineEdit, QCheckBox, QProgressBar, QMessageBox, QFileDialog
 )
 
+CREATE_NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
+
 def create_installer_icon() -> QIcon:
+    # 1. Prefer physical app.ico if packaged or available
+    for cand in [
+        Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent)) / "app.ico",
+        Path(__file__).parent / "app.ico",
+        Path(sys.executable).parent / "app.ico"
+    ]:
+        if cand.exists():
+            return QIcon(str(cand))
+
+    # 2. Fallback to vector generated icon
     pixmap = QPixmap(64, 64)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
@@ -94,7 +106,8 @@ def create_windows_shortcut(target_exe: Path, shortcut_path: Path, working_dir: 
             f"$s.Save()"
         )
         res = subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
-                             capture_output=True, text=True, timeout=5)
+                             capture_output=True, text=True, timeout=5,
+                             creationflags=CREATE_NO_WINDOW)
         return res.returncode == 0
     except Exception as e:
         print(f"[Installer] Failed to create shortcut: {e}")
@@ -134,7 +147,12 @@ class InstallWorker(QThread):
             # 1. Close any running EdgeSidecar instances to prevent file lock
             try:
                 if sys.platform == "win32":
-                    subprocess.run(["taskkill", "/F", "/IM", "EdgeSidecar.exe"], capture_output=True, check=False)
+                    subprocess.run(
+                        ["taskkill", "/F", "/IM", "EdgeSidecar.exe"],
+                        capture_output=True,
+                        check=False,
+                        creationflags=CREATE_NO_WINDOW
+                    )
                     time.sleep(0.5)
             except Exception:
                 pass
@@ -164,7 +182,7 @@ class InstallWorker(QThread):
                 shutil.copytree(src_dir / "_internal", dest_internal)
 
             # 4. Copy essential config and UI assets
-            for extra in ["dashboard.html", "rules.json", "README.md"]:
+            for extra in ["dashboard.html", "rules.json", "README.md", "app.ico"]:
                 if (src_dir / extra).exists():
                     shutil.copy2(src_dir / extra, self.target_dir / extra)
 

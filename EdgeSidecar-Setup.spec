@@ -9,6 +9,7 @@ a = Analysis(
     binaries=[],
     datas=[
         (str(ROOT_DIR / 'dist' / 'EdgeSidecar'), 'payload'),
+        (str(ROOT_DIR / 'app.ico'), '.'),
     ],
     hiddenimports=[],
     hookspath=[],
@@ -39,4 +40,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=str(ROOT_DIR / 'app.ico'),
 )

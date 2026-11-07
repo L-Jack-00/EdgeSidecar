@@ -23,6 +23,7 @@ OutputBaseFilename=EdgeSidecar-Setup-v1.3.1
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=app.ico
 
 [Languages]
 Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"

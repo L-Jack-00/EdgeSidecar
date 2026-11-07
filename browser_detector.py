@@ -30,8 +30,8 @@ PORTABLE_PATHS = [
 ]
 
 DEFAULT_SETTINGS = {
-    "selected_browser": "auto",       # "auto", "edge", "chrome", "brave", "whale", "portable"
-    "has_configured_browser": False,
+    "selected_browser": "edge",       # Default to Edge for 100% native Chrome Web Store & performance
+    "has_configured_browser": True,
     "last_used_path": "",
     "enable_cdp": True
 }
@@ -149,8 +149,8 @@ def resolve_selected_browser() -> Tuple[str, str]:
             if b["id"] == selected_id:
                 return b["path"], b["name"]
 
-    # Fallback / Auto: Portable -> Edge -> Chrome -> Brave -> Whale -> first available
-    priority = ["portable", "edge", "chrome", "brave", "whale"]
+    # Fallback / Auto: Edge -> Portable -> Chrome -> Brave -> Whale -> first available
+    priority = ["edge", "portable", "chrome", "brave", "whale"]
     for pid in priority:
         for b in installed_browsers:
             if b["id"] == pid:

@@ -10,6 +10,7 @@ a = Analysis(
     datas=[
         (str(ROOT_DIR / 'dashboard.html'), '.'),
         (str(ROOT_DIR / 'rules.json'), '.'),
+        (str(ROOT_DIR / 'app.ico'), '.'),
     ],
     hiddenimports=[],
     hookspath=[],
@@ -37,6 +38,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=str(ROOT_DIR / 'app.ico'),
 )
 coll = COLLECT(
     exe,
