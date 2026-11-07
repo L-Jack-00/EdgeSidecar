@@ -202,7 +202,7 @@ class TestEdgeSidecarBrowser(unittest.IsolatedAsyncioTestCase):
 
     def test_13_browser_detector_and_settings(self):
         """Verify browser detector scans system and updates settings.json properly."""
-        from browser_detector import scan_all_browsers, set_browser_selection, load_settings, resolve_selected_browser
+        from browser_detector import scan_all_browsers, set_browser_selection, load_settings, resolve_selected_browser, is_cdp_enabled, set_cdp_enabled
         browsers = scan_all_browsers()
         self.assertGreater(len(browsers), 0)
         self.assertTrue(any(b["id"] == "edge" for b in browsers))
@@ -211,6 +211,12 @@ class TestEdgeSidecarBrowser(unittest.IsolatedAsyncioTestCase):
         settings = load_settings()
         self.assertEqual(settings.get("selected_browser"), "edge")
         self.assertTrue(settings.get("has_configured_browser"))
+
+        # Verify CDP security mode toggle & persistent persistence
+        set_cdp_enabled(False)
+        self.assertFalse(is_cdp_enabled())
+        set_cdp_enabled(True)
+        self.assertTrue(is_cdp_enabled())
 
         path, name = resolve_selected_browser()
         self.assertTrue(Path(path).exists())

@@ -32,7 +32,8 @@ PORTABLE_PATHS = [
 DEFAULT_SETTINGS = {
     "selected_browser": "auto",       # "auto", "edge", "chrome", "brave", "whale", "portable"
     "has_configured_browser": False,
-    "last_used_path": ""
+    "last_used_path": "",
+    "enable_cdp": True
 }
 
 def load_settings() -> Dict[str, Any]:
@@ -50,6 +51,15 @@ def save_settings(data: Dict[str, Any]):
             json.dump(data, f, indent=2, ensure_ascii=False)
     except Exception as e:
         print(f"[Settings] Error saving settings: {e}")
+
+def is_cdp_enabled() -> bool:
+    return bool(load_settings().get("enable_cdp", True))
+
+def set_cdp_enabled(enabled: bool):
+    s = load_settings()
+    s["enable_cdp"] = bool(enabled)
+    save_settings(s)
+    print(f"[Settings] CDP debugging port (9222) enabled set to: {s['enable_cdp']}")
 
 def detect_portable_path() -> Optional[str]:
     from portable_engine import portable_manager

@@ -15,7 +15,7 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 from config import PROFILE_DIR, PROXY_PORT, CDP_PORT
-from browser_detector import resolve_selected_browser
+from browser_detector import resolve_selected_browser, is_cdp_enabled
 
 # Backward-compatible alias
 resolve_browser_binary = resolve_selected_browser
@@ -74,10 +74,15 @@ def launch_edge(profile_name: str = "default", headless: bool = False, extra_url
     args = [
         browser_bin,
         f"--user-data-dir={profile_path}",
-        f"--remote-debugging-port={CDP_PORT}",
+    ]
+
+    if is_cdp_enabled():
+        args.append(f"--remote-debugging-port={CDP_PORT}")
+
+    args.extend([
         f"--proxy-server=http://127.0.0.1:{PROXY_PORT}",
         # Zero Bloatware & Telemetry flags
-        "--disable-features=msEdgeSidebarV2,msHub,msEdgeShoppingAssistant,msEdgeCollections,EdgeAssetDelivery,msVisualSearch,msEdgeInlineCompose,msEdgeFre,msDefaultSearchEngineGroupPolicy,msEdgeDiscoverButton",
+        "--disable-features=msEdgeSidebarV2,msHub,msHubApps,msEdgeShoppingAssistant,msEdgeCollections,EdgeAssetDelivery,msVisualSearch,msEdgeInlineCompose,msEdgeFre,msDefaultSearchEngineGroupPolicy,msEdgeDiscoverButton",
         "--disable-sync",
         "--disable-background-networking",
         "--no-first-run",
@@ -86,7 +91,7 @@ def launch_edge(profile_name: str = "default", headless: bool = False, extra_url
         "--disable-background-mode",
         "--no-service-autorun",
         "--extension-mime-request-handling=always-prompt-for-install",
-    ]
+    ])
 
     if headless:
         args.append("--headless=new")

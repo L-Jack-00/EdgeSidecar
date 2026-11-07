@@ -18,7 +18,7 @@ from config import PROXY_HOST, PROXY_PORT, MS_BLOCKED_DOMAINS, RESOURCE_DIR, BAS
 from rules import RuleEngine
 from harness_core import supervisor, HarnessState
 from portable_engine import portable_manager
-from browser_detector import scan_all_browsers, set_browser_selection, resolve_selected_browser
+from browser_detector import scan_all_browsers, set_browser_selection, resolve_selected_browser, is_cdp_enabled, set_cdp_enabled
 import cert_manager
 
 DASHBOARD_HTML_PATH = RESOURCE_DIR / "dashboard.html"
@@ -68,7 +68,8 @@ class TrafficLogger:
             "state": supervisor.state.name,
             "ca_installed": cert_manager.get_cached_ca_status(),
             "engine": engine_info,
-            "active_browser": browser_name
+            "active_browser": browser_name,
+            "enable_cdp": is_cdp_enabled()
         }
 
 logger = TrafficLogger()
@@ -188,6 +189,34 @@ async def handle_dashboard_request(reader: asyncio.StreamReader, writer: asyncio
             b"Content-Length: 15\r\n"
             b"Connection: close\r\n\r\n"
             b'{"status":"ok"}'
+        )
+        writer.write(resp)
+        await writer.drain()
+        return
+
+    if path == "/api/settings/cdp":
+        data = json.dumps({"enable_cdp": is_cdp_enabled()}).encode("utf-8")
+        resp = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Access-Control-Allow-Origin: *\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + data
+        )
+        writer.write(resp)
+        await writer.drain()
+        return
+
+    if path.startswith("/api/settings/toggle_cdp"):
+        cur = is_cdp_enabled()
+        set_cdp_enabled(not cur)
+        data = json.dumps({"enable_cdp": not cur}).encode("utf-8")
+        resp = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Access-Control-Allow-Origin: *\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + data
         )
         writer.write(resp)
         await writer.drain()

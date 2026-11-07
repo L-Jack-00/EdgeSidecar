@@ -18,6 +18,7 @@ from harness_core import supervisor, HarnessState
 from proxy_server import start_proxy_server
 from cdp_interceptor import CDPInterceptor
 from launcher import launch_edge
+from browser_detector import is_cdp_enabled
 from config import PROXY_HOST, PROXY_PORT
 
 def kill_process_tree(pid: int):
@@ -51,9 +52,15 @@ async def main(profile_name: str = "default"):
     supervisor.transition_to(HarnessState.EDGE_RUNNING)
     print(f"[Supervisor] Microsoft Edge launched (PID={edge_proc.pid})")
 
-    # 3. Start CDP Interceptor
-    interceptor = CDPInterceptor()
-    cdp_task = asyncio.create_task(interceptor.start())
+    # 3. Start CDP Interceptor (Only if CDP is enabled)
+    interceptor = None
+    cdp_task = None
+    if is_cdp_enabled():
+        interceptor = CDPInterceptor()
+        cdp_task = asyncio.create_task(interceptor.start())
+        print("[Supervisor] CDP Interceptor started on port 9222.")
+    else:
+        print("[Supervisor] Secure Mode: Remote debugging port (CDP) disabled.")
     supervisor.transition_to(HarnessState.RUNNING)
 
     print("\n[Supervisor] Engine is fully operational!")
@@ -87,8 +94,10 @@ async def main(profile_name: str = "default"):
         supervisor.emergency_stop()
     finally:
         supervisor.transition_to(HarnessState.TERMINATING)
-        interceptor.running = False
-        cdp_task.cancel()
+        if interceptor:
+            interceptor.running = False
+        if cdp_task:
+            cdp_task.cancel()
         server.close()
         await server.wait_closed()
 

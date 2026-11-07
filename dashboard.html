@@ -325,6 +325,20 @@
         </div>
       </div>
 
+      <!-- Card: CDP Debugging Port & Security Mode Toggle -->
+      <div class="banner">
+        <div>
+          <h3 style="margin-bottom: 8px;">🛡️ 원격 디버깅 포트 (Port 9222) 및 보안 강화 모드</h3>
+          <p style="color: var(--text-muted); font-size: 14px; max-width: 620px;">
+            디버깅 포트를 끄면 사이드카의 패킷 실시간 변조 및 외부 자동화 간섭 통로를 원천 차단하여 순수 무결 보안 브라우저로 구동됩니다. (설정은 브라우저를 종료해도 영구 유지됩니다)
+          </p>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+          <span id="cdp-status-badge" class="tag tag-passed" style="font-size: 12px; padding: 6px 12px;">확인 중...</span>
+          <button id="btn-toggle-cdp" onclick="toggleCDPSecurity()" class="btn btn-secondary">포트 끄기 (보안 강화)</button>
+        </div>
+      </div>
+
       <!-- Card: Portable Chromium Management & Auto-Swapper -->
       <div class="banner" style="border-left: 4px solid var(--accent); background: linear-gradient(135deg, rgba(14,165,233,0.1), #1e293b);">
         <div style="flex: 1;">
@@ -404,6 +418,7 @@
         checkCAStatus();
         loadBrowserEngines();
         loadPortableStatus();
+        loadCDPStatus();
       }
     }
 
@@ -447,6 +462,39 @@
       alert('브라우저 엔진 설정이 저장되었습니다.\n\n다음에 브라우저를 실행할 때 선택한 엔진으로 구동됩니다.');
       updateStats();
       loadBrowserEngines();
+    }
+
+    async function loadCDPStatus() {
+      try {
+        const res = await fetch('/api/settings/cdp');
+        const data = await res.json();
+        const badge = document.getElementById('cdp-status-badge');
+        const btn = document.getElementById('btn-toggle-cdp');
+        if (data.enable_cdp) {
+          badge.className = 'tag tag-passed';
+          badge.innerText = '디버깅 포트 활성화 (9222 ON)';
+          btn.className = 'btn btn-secondary';
+          btn.innerText = '포트 끄기 (보안 모드 전환)';
+        } else {
+          badge.className = 'tag tag-blocked';
+          badge.innerText = '보안 모드 (포트 9222 닫힘)';
+          btn.className = 'btn';
+          btn.innerText = '디버깅 포트 다시 켜기';
+        }
+      } catch (e) {}
+    }
+
+    async function toggleCDPSecurity() {
+      try {
+        const res = await fetch('/api/settings/toggle_cdp', { method: 'POST' });
+        const data = await res.json();
+        await loadCDPStatus();
+        if (data.enable_cdp) {
+          alert('원격 디버깅 포트(9222)가 활성화되었습니다.\n\n다음에 브라우저를 다시 시작할 때 적용됩니다.');
+        } else {
+          alert('보안 모드가 설정되었습니다.\n(원격 디버깅 포트 9222가 완전히 닫힙니다)\n\n다음에 브라우저를 다시 시작할 때 적용됩니다.');
+        }
+      } catch (e) {}
     }
 
     async function updateTraffic() {
