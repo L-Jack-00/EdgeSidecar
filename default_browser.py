@@ -207,22 +207,22 @@ def open_default_apps_settings() -> bool:
     """
     Opens Windows Default Apps settings dialog so user can confirm EdgeSidecar as default.
     Windows 10/11 requires user action to change UserChoice hash.
+    Uses native ShellExecute to ensure 'ms-settings:' protocol is launched rather than explorer opening Documents folder.
     """
     if sys.platform != "win32":
         return False
     try:
-        # Try direct app page first, fallback to general defaultapps
-        commands = [
-            ["explorer.exe", f"ms-settings:defaultapps?registeredAppMachine={APP_NAME}"],
-            ["explorer.exe", "ms-settings:defaultapps"]
-        ]
-        for cmd in commands:
-            try:
-                subprocess.Popen(cmd, creationflags=CREATE_NO_WINDOW)
-                return True
-            except Exception:
-                continue
-        return False
+        # 1. Native os.startfile calls ShellExecute directly (handles ms-settings protocol natively)
+        try:
+            os.startfile("ms-settings:defaultapps")
+            return True
+        except Exception:
+            pass
+
+        # 2. Command shell 'start' fallback (ShellExecute wrapper)
+        cmd = ["cmd", "/c", "start", "", "ms-settings:defaultapps"]
+        subprocess.Popen(cmd, creationflags=CREATE_NO_WINDOW)
+        return True
     except Exception as e:
         print(f"[DefaultBrowser] Failed to open Windows Settings: {e}")
         return False

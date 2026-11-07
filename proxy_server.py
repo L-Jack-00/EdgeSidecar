@@ -214,7 +214,7 @@ async def handle_dashboard_request(reader: asyncio.StreamReader, writer: asyncio
         return
 
     if path == "/api/ping":
-        data = json.dumps({"status": "ok", "app": "EdgeSidecar", "version": "1.3.2"}).encode("utf-8")
+        data = json.dumps({"status": "ok", "app": "EdgeSidecar", "version": "1.3.3"}).encode("utf-8")
         resp = (
             b"HTTP/1.1 200 OK\r\n"
             b"Content-Type: application/json\r\n"
