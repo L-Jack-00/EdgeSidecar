@@ -107,7 +107,7 @@ def register_windows_uninstall(target_dir: Path, exe_path: Path):
         key_path = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\EdgeSidecar"
         with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path) as key:
             winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, "Edge Sidecar Browser")
-            winreg.SetValueEx(key, "DisplayVersion", 0, winreg.REG_SZ, "1.3.0")
+            winreg.SetValueEx(key, "DisplayVersion", 0, winreg.REG_SZ, "1.3.1")
             winreg.SetValueEx(key, "Publisher", 0, winreg.REG_SZ, "EdgeSidecar Open Source")
             winreg.SetValueEx(key, "InstallLocation", 0, winreg.REG_SZ, str(target_dir))
             winreg.SetValueEx(key, "UninstallString", 0, winreg.REG_SZ, f'"{target_dir}\\uninstall.bat"')
@@ -238,7 +238,7 @@ class InstallWorker(QThread):
 class InstallerWindow(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Edge Sidecar Browser 설치 마법사 (v1.3.0)")
+        self.setWindowTitle("Edge Sidecar Browser 설치 마법사 (v1.3.1)")
         self.setFixedSize(540, 420)
         self.setWindowIcon(create_installer_icon())
         self.setStyleSheet("""
@@ -291,7 +291,7 @@ class InstallerWindow(QWidget):
         layout.setSpacing(16)
 
         # Header Title
-        title = QLabel("🛡️ Edge Sidecar Browser 설치 마법사 (v1.3.0)")
+        title = QLabel("🛡️ Edge Sidecar Browser 설치 마법사 (v1.3.1)")
         title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
         title.setStyleSheet("color: #38bdf8;")
         layout.addWidget(title)

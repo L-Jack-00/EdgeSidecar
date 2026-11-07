@@ -1,7 +1,7 @@
-# 🛡️ Edge Sidecar Browser (v1.3.0)
+# 🛡️ Edge Sidecar Browser (v1.3.1)
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Release-v1.3.0-0ea5e9?style=for-the-badge&logo=windows&logoColor=white" alt="Release v1.3.0" />
+  <img src="https://img.shields.io/badge/Release-v1.3.1-0ea5e9?style=for-the-badge&logo=windows&logoColor=white" alt="Release v1.3.1" />
   <img src="https://img.shields.io/badge/Chromium-Portable%20Bundled-10b981?style=for-the-badge&logo=googlechrome&logoColor=white" alt="Chromium Bundled" />
   <img src="https://img.shields.io/badge/MS%20Telemetry-0%25%20Blocked-ef4444?style=for-the-badge&logo=microsoftedge&logoColor=white" alt="Telemetry 0%" />
   <img src="https://img.shields.io/badge/Manifest%20V3-Bypassed-8b5cf6?style=for-the-badge" alt="MV3 Bypassed" />
@@ -32,7 +32,7 @@
 
 ## 🌟 핵심 특징 한눈에 보기
 
-| 비교 항목 | 일반 순정 Edge / Chrome | 🛡️ Edge Sidecar Browser (v1.3.0) |
+| 비교 항목 | 일반 순정 Edge / Chrome | 🛡️ Edge Sidecar Browser (v1.3.1) |
 | :--- | :--- | :--- |
 | **Edge 미설치 PC 구동** | ❌ Edge 없으면 오류 발생 | ✅ **독립형 포터블 크로뮴 내장으로 100% 무조건 실행** |
 | **최신 엔진 자동 교체** | ❌ 수동 재설치 필요 | ✅ **대시보드에서 1클릭으로 최신 크로뮴 자동 갈아끼우기** |
@@ -49,14 +49,14 @@
 GitHub Releases 페이지에서 내 사용 환경에 맞는 버전을 선택하여 다운로드할 수 있습니다:
 
 ### 1️⃣ [추천] 일반 사용자용 원클릭 설치 파일 (`EdgeSidecar-Setup.exe`)
-* **다운로드**: [`dist_installer/EdgeSidecar-Setup.exe`](https://github.com/L-Jack-00/EdgeSidecar/releases/download/v1.3.0/EdgeSidecar-Setup.exe) (약 275 MB)
+* **다운로드**: [`dist_installer/EdgeSidecar-Setup.exe`](https://github.com/L-Jack-00/EdgeSidecar/releases/download/v1.3.1/EdgeSidecar-Setup.exe) (약 275 MB)
 * **특징**:
   * 파이썬이나 별도 소프트웨어를 설치할 필요가 전혀 없습니다.
   * 더블 클릭 후 **[설치 시작]**만 누르면 윈도우 바탕화면과 시작 메뉴에 예쁜 방패 아이콘 바로가기가 자동 생성됩니다.
   * 포터블 크로뮴 엔진이 기본 탑재되어 있어 순정 PC에서도 바로 동작합니다.
 
-### 2️⃣ 무설치 포터블 압축 파일 (`EdgeSidecar-v1.3.0-Portable.zip`)
-* **다운로드**: [`dist/EdgeSidecar-v1.3.0-Portable.zip`](https://github.com/L-Jack-00/EdgeSidecar/releases/download/v1.3.0/EdgeSidecar-v1.3.0-Portable.zip) (약 241 MB)
+### 2️⃣ 무설치 포터블 압축 파일 (`EdgeSidecar-v1.3.1-Portable.zip`)
+* **다운로드**: [`dist/EdgeSidecar-v1.3.1-Portable.zip`](https://github.com/L-Jack-00/EdgeSidecar/releases/download/v1.3.1/EdgeSidecar-v1.3.1-Portable.zip) (약 241 MB)
 * **특징**:
   * 시스템 레지스트리를 건드리지 않는 100% 무설치(Clean-room) 패키지입니다.
   * 원하는 폴더나 USB 외장 드라이브에 압축을 푼 뒤 `EdgeSidecar.exe`를 실행하면 즉시 실행됩니다.

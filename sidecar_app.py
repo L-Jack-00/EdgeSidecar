@@ -33,7 +33,7 @@ def kill_process_tree(pid: int):
 
 async def main(profile_name: str = "default"):
     print("=" * 60)
-    print("🛡️  EDGE SIDECAR BROWSER (v1.3.0)")
+    print("🛡️  EDGE SIDECAR BROWSER (v1.3.1)")
     print(f" - 프로필 모드: [{profile_name.upper()}]")
     print(" - 패킷 통제 엔진: 실시간 헤더/본문 변조 & Manifest V3 탈피")
     print(" - 마이크로소프트 텔레메트리/블로트웨어 원천 차단 (Zero Telemetry)")
