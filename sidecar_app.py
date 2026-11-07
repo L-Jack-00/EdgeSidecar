@@ -124,6 +124,13 @@ if __name__ == "__main__":
     parser.add_argument("--profile", default="default", choices=["default", "developer", "isolated"], help="Profile preset")
     args = parser.parse_args()
 
+    # First launch: prompt for browser engine selection if not configured yet
+    try:
+        from browser_dialog import prompt_first_run_browser_selection
+        prompt_first_run_browser_selection()
+    except Exception as e:
+        print(f"[Supervisor] First-run prompt skipped: {e}")
+
     try:
         asyncio.run(main(profile_name=args.profile))
     except (KeyboardInterrupt, SystemExit):

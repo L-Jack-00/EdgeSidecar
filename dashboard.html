@@ -245,11 +245,11 @@
     </div>
 
     <div class="nav-tabs">
-      <button class="tab-btn active" onclick="switchTab('traffic')">📡 실시간 트래픽 감시</button>
-      <button class="tab-btn" onclick="switchTab('ms')">🛡️ 차단된 MS 서비스 목록</button>
-      <button class="tab-btn" onclick="switchTab('rules')">⚡ 실시간 패킷 규칙 엔진</button>
-      <button class="tab-btn" onclick="switchTab('advanced')">⚙️ 브라우저 엔진 & 보안 관리</button>
-      <button class="tab-btn" onclick="switchTab('extensions')">🧩 크롬 확장 프로그램</button>
+      <button class="tab-btn active" data-tab="traffic" onclick="switchTab('traffic', this)">📡 실시간 트래픽 감시</button>
+      <button class="tab-btn" data-tab="ms" onclick="switchTab('ms', this)">🛡️ 차단된 MS 서비스 목록</button>
+      <button class="tab-btn" data-tab="rules" onclick="switchTab('rules', this)">⚡ 실시간 패킷 규칙 엔진</button>
+      <button class="tab-btn" data-tab="advanced" onclick="switchTab('advanced', this)">⚙️ 브라우저 엔진 & 보안 관리</button>
+      <button class="tab-btn" data-tab="extensions" onclick="switchTab('extensions', this)">🧩 크롬 확장 프로그램</button>
     </div>
 
     <!-- TAB 1: Live Traffic -->
@@ -408,17 +408,36 @@
   </div>
 
   <script>
-    function switchTab(tabId) {
+    function switchTab(tabId, el) {
       document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-      event.target.classList.add('active');
-      document.getElementById('tab-' + tabId).classList.add('active');
-      if (tabId === 'rules') loadRules();
-      if (tabId === 'advanced') {
-        checkCAStatus();
-        loadBrowserEngines();
-        loadPortableStatus();
-        loadCDPStatus();
+
+      let activeBtn = el;
+      if (!activeBtn && typeof event !== 'undefined' && event && event.target) {
+        activeBtn = event.target.closest('.tab-btn');
+      }
+      if (!activeBtn) {
+        activeBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+      }
+      if (activeBtn) {
+        activeBtn.classList.add('active');
+      }
+
+      const activeContent = document.getElementById('tab-' + tabId);
+      if (activeContent) {
+        activeContent.classList.add('active');
+      }
+
+      try {
+        if (tabId === 'rules') loadRules();
+        if (tabId === 'advanced') {
+          checkCAStatus();
+          loadBrowserEngines();
+          loadPortableStatus();
+          loadCDPStatus();
+        }
+      } catch (e) {
+        console.error('Tab switch init error:', e);
       }
     }
 
@@ -443,6 +462,7 @@
         const res = await fetch('/api/browser/list');
         const list = await res.json();
         const sel = document.getElementById('browser-engine-select');
+        const hasSelected = list.some(b => b.selected && b.installed);
         sel.innerHTML = list.map(b => {
           let label = b.name;
           if (b.installed) {
@@ -450,7 +470,11 @@
           } else {
             label += ' [미설치]';
           }
-          return `<option value="${b.id}" ${b.selected ? 'selected' : ''} ${!b.installed ? 'disabled' : ''}>${label}</option>`;
+          let isSel = b.selected;
+          if (!hasSelected && b.installed && (b.id === 'edge' || b.id === 'portable')) {
+            isSel = true;
+          }
+          return `<option value="${b.id}" ${isSel ? 'selected' : ''} ${!b.installed ? 'disabled' : ''}>${label}</option>`;
         }).join('');
       } catch (e) {}
     }

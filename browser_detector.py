@@ -31,7 +31,7 @@ PORTABLE_PATHS = [
 
 DEFAULT_SETTINGS = {
     "selected_browser": "edge",       # Default to Edge for 100% native Chrome Web Store & performance
-    "has_configured_browser": True,
+    "has_configured_browser": False,  # False on fresh install so dialog appears!
     "last_used_path": "",
     "enable_cdp": True
 }

@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
 from config import PROXY_PORT, BASE_DIR
 from harness_core import supervisor, HarnessState
 from browser_detector import scan_all_browsers, set_browser_selection, load_settings, resolve_selected_browser
+from browser_dialog import BrowserSelectDialog
 import sidecar_app
 
 def create_shield_icon() -> QIcon:
@@ -39,89 +40,6 @@ def create_shield_icon() -> QIcon:
     painter.drawText(pixmap.rect(), Qt.AlignmentFlag.AlignCenter, "E")
     painter.end()
     return QIcon(pixmap)
-
-class BrowserSelectDialog(QDialog):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("🌐 기본 브라우저 엔진 선택")
-        self.setFixedSize(480, 360)
-        self.setStyleSheet("""
-            QDialog {
-                background-color: #0f172a;
-                color: #f8fafc;
-                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            }
-            QLabel { color: #f8fafc; font-size: 13px; }
-            QRadioButton {
-                color: #f8fafc;
-                font-size: 13px;
-                padding: 6px;
-                spacing: 8px;
-            }
-            QRadioButton::indicator { width: 16px; height: 16px; }
-            QPushButton {
-                background: #0ea5e9;
-                color: #000;
-                font-weight: bold;
-                border: none;
-                padding: 10px 20px;
-                border-radius: 6px;
-                font-size: 13px;
-            }
-            QPushButton:hover { background: #38bdf8; }
-        """)
-
-        layout = QVBoxLayout()
-        layout.setContentsMargins(25, 20, 25, 20)
-        layout.setSpacing(14)
-
-        title = QLabel("🌐 사용할 브라우저 엔진 선택")
-        title.setFont(QFont("Segoe UI", 15, QFont.Weight.Bold))
-        title.setStyleSheet("color: #38bdf8;")
-        layout.addWidget(title)
-
-        desc = QLabel("내 컴퓨터에 설치된 브라우저 중 사이드카와 연결할 엔진을 선택해 주세요.\n(나중에 언제든 대시보드나 트레이 메뉴에서 변경할 수 있습니다)")
-        desc.setStyleSheet("color: #94a3b8; font-size: 12px;")
-        layout.addWidget(desc)
-
-        self.radios = {}
-        browsers = scan_all_browsers()
-        first_installed = None
-
-        for b in browsers:
-            status_text = " (설치됨)" if b["installed"] else " [미설치]"
-            label = f"{b['name']}{status_text}"
-            rb = QRadioButton(label)
-            rb.setEnabled(b["installed"])
-            if not b["installed"]:
-                rb.setStyleSheet("color: #64748b;")
-
-            if b["installed"] and first_installed is None:
-                first_installed = b["id"]
-                rb.setChecked(True)
-
-            self.radios[b["id"]] = rb
-            layout.addWidget(rb)
-
-        layout.addStretch()
-
-        btn_box = QHBoxLayout()
-        btn_box.addStretch()
-        btn_ok = QPushButton("선택 완료 및 시작 ➔")
-        btn_ok.clicked.connect(self.on_confirm)
-        btn_box.addWidget(btn_ok)
-        layout.addLayout(btn_box)
-
-        self.setLayout(layout)
-
-    def on_confirm(self):
-        selected_id = "auto"
-        for bid, rb in self.radios.items():
-            if rb.isChecked():
-                selected_id = bid
-                break
-        set_browser_selection(selected_id)
-        self.accept()
 
 class SystemTrayApp(QObject):
     quit_signal = pyqtSignal()
