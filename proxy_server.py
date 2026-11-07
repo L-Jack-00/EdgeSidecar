@@ -106,7 +106,8 @@ def is_ms_blocked(host: str) -> bool:
     return False
 
 async def handle_dashboard_request(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, path: str):
-    if path == "/" or path == "/dashboard":
+    clean_path = path.split("?")[0].rstrip("/")
+    if clean_path == "" or clean_path == "/dashboard":
         if DASHBOARD_HTML_PATH.exists():
             with open(DASHBOARD_HTML_PATH, "r", encoding="utf-8") as f:
                 content = f.read().encode("utf-8")
@@ -119,6 +120,11 @@ async def handle_dashboard_request(reader: asyncio.StreamReader, writer: asyncio
         else:
             resp = b"HTTP/1.1 404 Not Found\r\n\r\nDashboard missing"
         writer.write(resp)
+        await writer.drain()
+        return
+
+    if clean_path == "/favicon.ico":
+        writer.write(b"HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
         await writer.drain()
         return
 
@@ -517,12 +523,17 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
         host_header = headers.get("host", target)
 
-        if host_header.startswith("127.0.0.1") or host_header.startswith("localhost") or host_header.startswith("sidecar.local"):
+        # Ultra-fast in-memory path for local Dashboard and APIs (bypasses any proxy networking delay)
+        if host_header.startswith("127.0.0.1") or host_header.startswith("localhost") or host_header.startswith("sidecar.local") or target.startswith("/"):
             path = target
             if path.startswith("http://") or path.startswith("https://"):
                 path = "/" + "/".join(path.split("/")[3:])
             await handle_dashboard_request(reader, writer, path)
-            writer.close()
+            try:
+                writer.close()
+                await writer.wait_closed()
+            except Exception:
+                pass
             return
 
         if is_ms_blocked(host_header):

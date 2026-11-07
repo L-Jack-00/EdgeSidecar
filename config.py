@@ -52,6 +52,16 @@ MS_BLOCKED_DOMAINS = [
     "rewards.bing.com",
     "copilot.microsoft.com",
     "cortana.ai",
+    "substrate.office.com",
+    "mss.office.com",
+    "prod.rewardsplatform.microsoft.com",
+    "access-point.cloudmessaging.edge.microsoft.com",
+    "*.rewardsplatform.microsoft.com",
+    "*.cloudmessaging.edge.microsoft.com",
+    "*.substrate.office.com",
+    "*.office.com",
+    "*.officeapps.live.com",
+    "*.skype.com",
 ]
 
 # Browser executable candidates in prioritized search order

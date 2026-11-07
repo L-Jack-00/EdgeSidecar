@@ -34,11 +34,36 @@ def setup_isolated_profile(profile_key: str = "default") -> Path:
     default_dir = target_profile_dir / "Default"
     default_dir.mkdir(parents=True, exist_ok=True)
     pref_file = default_dir / "Preferences"
+    local_state_file = target_profile_dir / "Local State"
+    first_run_file = target_profile_dir / "First Run"
+
+    # Pre-seed First Run marker to prevent cold-start First Run Experience dialogs
+    try:
+        if not first_run_file.exists():
+            first_run_file.touch()
+    except Exception:
+        pass
+
+    # Pre-seed Local State to prevent variations/seed downloads
+    if not local_state_file.exists():
+        try:
+            with open(local_state_file, "w", encoding="utf-8") as f:
+                json.dump({
+                    "browser": {"enabled_labs_experiments": []},
+                    "fre": {"has_user_seen_fre": True}
+                }, f, indent=2)
+        except Exception:
+            pass
 
     prefs = {
         "browser": {
             "has_seen_welcome_page": True,
-            "check_default_browser": False
+            "check_default_browser": False,
+            "should_reset_check_default_browser": False
+        },
+        "session": {
+            "restore_on_startup": 4,
+            "startup_urls": [f"http://127.0.0.1:{PROXY_PORT}/dashboard"]
         },
         "extensions": {
             "ui": {
@@ -57,7 +82,7 @@ def setup_isolated_profile(profile_key: str = "default") -> Path:
             }
         },
         "sync": {
-            "has_setup_completed": False
+            "has_setup_completed": True
         },
         "ntp": {
             "num_personal_suggestions": 0
@@ -69,7 +94,11 @@ def setup_isolated_profile(profile_key: str = "default") -> Path:
             with open(pref_file, "r", encoding="utf-8") as f:
                 existing = json.load(f)
             existing.setdefault("edge", {}).setdefault("webstore", {})["allowed"] = True
+            existing.setdefault("edge", {}).setdefault("fre", {})["has_user_seen_fre"] = True
+            existing.setdefault("sync", {})["has_setup_completed"] = True
             existing.setdefault("ntp", {})["num_personal_suggestions"] = 0
+            existing.setdefault("browser", {})["check_default_browser"] = False
+            existing.setdefault("browser", {})["has_seen_welcome_page"] = True
             with open(pref_file, "w", encoding="utf-8") as f:
                 json.dump(existing, f, indent=2)
         except Exception:
@@ -94,11 +123,15 @@ def launch_edge(profile_name: str = "default", headless: bool = False, extra_url
 
     args.extend([
         f"--proxy-server=http://127.0.0.1:{PROXY_PORT}",
-        "--proxy-bypass-list=<-loopback>",
+        "--proxy-bypass-list=127.0.0.1;localhost",
         # Zero Bloatware & Telemetry flags & Instant Proxy Resolution
-        "--disable-features=WinHttpProxyResolver,msEdgeSidebarV2,msHub,msHubApps,msEdgeShoppingAssistant,msEdgeCollections,EdgeAssetDelivery,msVisualSearch,msEdgeInlineCompose,msEdgeFre,msDefaultSearchEngineGroupPolicy,msEdgeDiscoverButton",
+        "--disable-features=WinHttpProxyResolver,msEdgeSidebarV2,msHub,msHubApps,msEdgeShoppingAssistant,msEdgeCollections,EdgeAssetDelivery,msVisualSearch,msEdgeInlineCompose,msEdgeFre,msDefaultSearchEngineGroupPolicy,msEdgeDiscoverButton,EdgeRewards,EdgeSubstrate,EdgeAccessPoint,msEdgeStartupBoost,EdgeSync",
         "--disable-sync",
         "--disable-background-networking",
+        "--disable-component-update",
+        "--disable-domain-reliability",
+        "--disable-client-side-phishing-detection",
+        "--disable-component-extensions-with-background-pages",
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-search-engine-choice-screen",
