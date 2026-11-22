@@ -29,11 +29,14 @@ PORTABLE_PATHS = [
     BIN_DIR / "Chromium" / "chrome.exe",
 ]
 
+DEFAULT_BYPASS_SITES: List[str] = []
+
 DEFAULT_SETTINGS = {
     "selected_browser": "edge",       # Default to Edge for 100% native Chrome Web Store & performance
     "has_configured_browser": False,  # False on fresh install so dialog appears!
     "last_used_path": "",
-    "enable_cdp": True
+    "enable_cdp": True,
+    "bypass_sites": list(DEFAULT_BYPASS_SITES),
 }
 
 def load_settings() -> Dict[str, Any]:
@@ -60,6 +63,65 @@ def set_cdp_enabled(enabled: bool):
     s["enable_cdp"] = bool(enabled)
     save_settings(s)
     print(f"[Settings] CDP debugging port (9222) enabled set to: {s['enable_cdp']}")
+
+def normalize_bypass_site(site: str) -> str:
+    """Normalizes a URL or host pattern into Chromium proxy-bypass format (host or *.domain or host:port)."""
+    s = (site or "").strip().lower()
+    for prefix in ("https://", "http://", "ws://", "wss://"):
+        if s.startswith(prefix):
+            s = s[len(prefix):]
+            break
+    if "/" in s:
+        s = s.split("/", 1)[0]
+    return s.strip()
+
+def get_bypass_sites() -> List[str]:
+    """Returns persisted exception sites that bypass proxy and CDP interception."""
+    s = load_settings()
+    sites = s.get("bypass_sites")
+    if isinstance(sites, list):
+        return [str(x).strip() for x in sites if str(x).strip()]
+    return list(DEFAULT_BYPASS_SITES)
+
+def add_bypass_site(site: str) -> List[str]:
+    norm = normalize_bypass_site(site)
+    s = load_settings()
+    sites = get_bypass_sites()
+    if norm and norm not in sites:
+        sites.append(norm)
+    s["bypass_sites"] = sites
+    save_settings(s)
+    print(f"[Settings] Bypass sites updated: {sites}")
+    return sites
+
+def remove_bypass_site(site: str) -> List[str]:
+    norm = normalize_bypass_site(site)
+    s = load_settings()
+    sites = [x for x in get_bypass_sites() if x.lower() != norm and x.lower() != (site or "").strip().lower()]
+    s["bypass_sites"] = sites
+    save_settings(s)
+    print(f"[Settings] Bypass sites updated: {sites}")
+    return sites
+
+def is_host_bypassed(host_or_url: str) -> bool:
+    """Checks whether a URL or Host header matches any configured bypass site."""
+    target = normalize_bypass_site(host_or_url)
+    if not target:
+        return False
+    host_only = target.split(":", 1)[0]
+    for pattern in get_bypass_sites():
+        p = pattern.lower()
+        if target == p or host_only == p:
+            return True
+        if p.startswith("*."):
+            suffix = p[2:]
+            if host_only == suffix or host_only.endswith("." + suffix):
+                return True
+        elif p.startswith("."):
+            suffix = p[1:]
+            if host_only == suffix or host_only.endswith("." + suffix):
+                return True
+    return False
 
 def detect_portable_path() -> Optional[str]:
     from portable_engine import portable_manager

@@ -17,6 +17,7 @@ if hasattr(sys.stdout, "reconfigure"):
 from config import CDP_PORT
 from rules import RuleEngine
 from proxy_server import logger
+from browser_detector import is_host_bypassed
 
 # Maximum file size to buffer in memory for packet interception (50 MB)
 MAX_BUFFER_CONTENT_LENGTH = 50 * 1024 * 1024
@@ -109,7 +110,7 @@ class CDPInterceptor:
         response_status = params.get("responseStatusCode")
 
         # Skip local dashboard or devtools requests
-        if "127.0.0.1" in url or "localhost" in url or url.startswith("devtools://") or url.startswith("edge://"):
+        if "127.0.0.1" in url or "localhost" in url or url.startswith("devtools://") or url.startswith("edge://") or is_host_bypassed(url):
             if response_status:
                 await self.send("Fetch.continueResponse", {"requestId": req_id}, session_id=session_id)
             else:

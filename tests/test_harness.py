@@ -325,5 +325,97 @@ class TestEdgeSidecarBrowser(unittest.IsolatedAsyncioTestCase):
             server.close()
             await server.wait_closed()
 
+    async def test_21_bypass_sites_and_local_port_isolation(self):
+        """Verify bypass sites persistence, matching, and non-dashboard local port forwarding (e.g. Mudfish 127.0.0.1:8282)."""
+        from browser_detector import get_bypass_sites, add_bypass_site, remove_bypass_site, is_host_bypassed
+        import inspect
+        import launcher
+
+        # 1. Verify launcher does NOT force <-loopback> and supports bypass list
+        src = inspect.getsource(launcher.launch_edge)
+        self.assertNotIn("<-loopback>", src)
+        self.assertIn("--proxy-bypass-list=", src)
+
+        # 2. Verify no hardcoded third-party VPN sites by default & test dynamic user bypass CRUD
+        from browser_detector import DEFAULT_BYPASS_SITES, load_settings, save_settings
+        self.assertEqual(DEFAULT_BYPASS_SITES, [])
+
+        orig_settings = load_settings()
+        try:
+            add_bypass_site("https://custom-vpn.example.com/path")
+            self.assertTrue(is_host_bypassed("custom-vpn.example.com"))
+            self.assertFalse(is_host_bypassed("https://google.com"))
+            remove_bypass_site("custom-vpn.example.com")
+            self.assertFalse(is_host_bypassed("custom-vpn.example.com"))
+
+            # 3. Verify proxy forwards other 127.0.0.1:<other_port> requests instead of hijacking to dashboard
+            async def dummy_local_handler(reader, writer):
+                req_line = await reader.readline()
+                while True:
+                    line = await reader.readline()
+                    if not line or line == b"\r\n":
+                        break
+                body = b"Local Service UI OK"
+                if req_line.startswith(b"GET /local "):
+                    writer.write(
+                        b"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: "
+                        + str(len(body)).encode() + b"\r\nConnection: close\r\n\r\n" + body
+                    )
+                else:
+                    writer.write(b"HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n")
+                await writer.drain()
+                writer.close()
+
+            dummy_server = await asyncio.start_server(dummy_local_handler, "127.0.0.1", 0)
+            dummy_port = dummy_server.sockets[0].getsockname()[1]
+            proxy_port = 9878
+            proxy_server = await start_proxy_server("127.0.0.1", proxy_port)
+
+            try:
+                # Test proxied plain HTTP request to another 127.0.0.1 port
+                r, w = await asyncio.open_connection("127.0.0.1", proxy_port)
+                w.write(
+                    f"GET http://127.0.0.1:{dummy_port}/local HTTP/1.1\r\n"
+                    f"Host: 127.0.0.1:{dummy_port}\r\n"
+                    f"Proxy-Connection: keep-alive\r\n\r\n".encode("latin1")
+                )
+                await w.drain()
+                resp = await r.read()
+                w.close()
+                self.assertIn(b"200 OK", resp)
+                self.assertIn(b"Local Service UI OK", resp)
+
+                # Test dashboard bypass settings API (add -> list -> remove)
+                r, w = await asyncio.open_connection("127.0.0.1", proxy_port)
+                w.write(b"POST /api/settings/bypass/add?site=*.mudfish.net HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+                await w.drain()
+                resp = await r.read()
+                w.close()
+                self.assertIn(b"200 OK", resp)
+                self.assertIn(b"*.mudfish.net", resp)
+
+                r, w = await asyncio.open_connection("127.0.0.1", proxy_port)
+                w.write(b"GET /api/settings/bypass HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+                await w.drain()
+                resp = await r.read()
+                w.close()
+                self.assertIn(b"200 OK", resp)
+                self.assertIn(b"*.mudfish.net", resp)
+
+                r, w = await asyncio.open_connection("127.0.0.1", proxy_port)
+                w.write(b"POST /api/settings/bypass/remove?site=*.mudfish.net HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+                await w.drain()
+                resp = await r.read()
+                w.close()
+                self.assertIn(b"200 OK", resp)
+                self.assertNotIn(b"*.mudfish.net", resp)
+            finally:
+                proxy_server.close()
+                await proxy_server.wait_closed()
+                dummy_server.close()
+                await dummy_server.wait_closed()
+        finally:
+            save_settings(orig_settings)
+
 if __name__ == "__main__":
     unittest.main()

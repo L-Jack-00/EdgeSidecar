@@ -19,7 +19,11 @@ from config import PROXY_HOST, PROXY_PORT, MS_BLOCKED_DOMAINS, RESOURCE_DIR, BAS
 from rules import RuleEngine
 from harness_core import supervisor, HarnessState
 from portable_engine import portable_manager
-from browser_detector import scan_all_browsers, set_browser_selection, resolve_selected_browser, is_cdp_enabled, set_cdp_enabled
+from browser_detector import (
+    scan_all_browsers, set_browser_selection, resolve_selected_browser,
+    is_cdp_enabled, set_cdp_enabled,
+    get_bypass_sites, add_bypass_site, remove_bypass_site, is_host_bypassed
+)
 import cert_manager
 import default_browser
 
@@ -220,7 +224,7 @@ async def handle_dashboard_request(reader: asyncio.StreamReader, writer: asyncio
         return
 
     if path == "/api/ping":
-        data = json.dumps({"status": "ok", "app": "EdgeSidecar", "version": "1.3.3"}).encode("utf-8")
+        data = json.dumps({"status": "ok", "app": "EdgeSidecar", "version": "1.4.0"}).encode("utf-8")
         resp = (
             b"HTTP/1.1 200 OK\r\n"
             b"Content-Type: application/json\r\n"
@@ -315,6 +319,57 @@ async def handle_dashboard_request(reader: asyncio.StreamReader, writer: asyncio
         cur = is_cdp_enabled()
         set_cdp_enabled(not cur)
         data = json.dumps({"enable_cdp": not cur}).encode("utf-8")
+        resp = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Access-Control-Allow-Origin: *\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + data
+        )
+        writer.write(resp)
+        await writer.drain()
+        return
+
+    if path == "/api/settings/bypass":
+        data = json.dumps({"sites": get_bypass_sites()}).encode("utf-8")
+        resp = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Access-Control-Allow-Origin: *\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + data
+        )
+        writer.write(resp)
+        await writer.drain()
+        return
+
+    if path.startswith("/api/settings/bypass/add"):
+        import urllib.parse
+        m = re.search(r"[?&]site=([^&]+)", path)
+        sites = get_bypass_sites()
+        if m:
+            site = urllib.parse.unquote(m.group(1))
+            sites = add_bypass_site(site)
+        data = json.dumps({"status": "ok", "sites": sites}).encode("utf-8")
+        resp = (
+            b"HTTP/1.1 200 OK\r\n"
+            b"Content-Type: application/json\r\n"
+            b"Access-Control-Allow-Origin: *\r\n"
+            b"Content-Length: " + str(len(data)).encode() + b"\r\n"
+            b"Connection: close\r\n\r\n" + data
+        )
+        writer.write(resp)
+        await writer.drain()
+        return
+
+    if path.startswith("/api/settings/bypass/remove"):
+        import urllib.parse
+        m = re.search(r"[?&]site=([^&]+)", path)
+        sites = get_bypass_sites()
+        if m:
+            site = urllib.parse.unquote(m.group(1))
+            sites = remove_bypass_site(site)
+        data = json.dumps({"status": "ok", "sites": sites}).encode("utf-8")
         resp = (
             b"HTTP/1.1 200 OK\r\n"
             b"Content-Type: application/json\r\n"
@@ -522,9 +577,16 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                 continue
 
         host_header = headers.get("host", target)
+        host_only, _, port_part = host_header.partition(":")
+        sockname = writer.get_extra_info("sockname")
+        listen_port = str(sockname[1]) if sockname and len(sockname) > 1 else str(PROXY_PORT)
 
-        # Ultra-fast in-memory path for local Dashboard and APIs (bypasses any proxy networking delay)
-        if host_header.startswith("127.0.0.1") or host_header.startswith("localhost") or host_header.startswith("sidecar.local") or target.startswith("/"):
+        is_dashboard_host = (
+            host_only == "sidecar.local" or
+            (host_only in ("127.0.0.1", "localhost") and port_part in ("", listen_port))
+        )
+
+        if (is_dashboard_host or target.startswith("/")) and method != "CONNECT":
             path = target
             if path.startswith("http://") or path.startswith("https://"):
                 path = "/" + "/".join(path.split("/")[3:])
@@ -536,7 +598,7 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                 pass
             return
 
-        if is_ms_blocked(host_header):
+        if not is_host_bypassed(host_header) and is_ms_blocked(host_header):
             if method == "CONNECT":
                 logger.log("CONNECT", f"https://{host_header}", status=403, blocked_ms=True)
                 writer.write(b"HTTP/1.1 403 Forbidden\r\nConnection: close\r\nContent-Length: 0\r\n\r\n")
@@ -592,9 +654,21 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                 writer.close()
                 return
 
-            upstream_writer.write(req_line)
+            forward_target = target
+            if target.startswith("http://"):
+                rest = target[7:]
+                slash_idx = rest.find("/")
+                forward_target = rest[slash_idx:] if slash_idx != -1 else "/"
+
+            upstream_writer.write(f"{method} {forward_target} HTTP/1.1\r\n".encode("latin1"))
             for k, v in headers.items():
+                if k == "proxy-connection":
+                    continue
+                if k == "connection" and "upgrade" not in headers:
+                    continue
                 upstream_writer.write(f"{k}: {v}\r\n".encode("latin1"))
+            if "upgrade" not in headers:
+                upstream_writer.write(b"connection: close\r\n")
             upstream_writer.write(b"\r\n")
             await upstream_writer.drain()
 

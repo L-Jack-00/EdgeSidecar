@@ -357,6 +357,25 @@
         </div>
       </div>
 
+      <!-- Card: Site Exceptions / Proxy & CDP Bypass -->
+      <div class="banner" style="border-left: 4px solid #f59e0b; background: linear-gradient(135deg, rgba(245,158,11,0.08), #1e293b); flex-direction: column; align-items: stretch; gap: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 280px;">
+            <h3 style="margin-bottom: 8px;">🔓 사이트 예외 허용 (프록시 &amp; 변조 우회)</h3>
+            <p style="color: var(--text-muted); font-size: 14px; max-width: 680px;">
+              특정 사이트(VPN, 보안/금융, 로컬 서비스 등)가 프록시나 패킷 변조로 인해 연결되지 않을 때 예외로 직접 등록합니다. 등록된 사이트는 브라우저가 프록시와 변조를 거치지 않고 직접 연결합니다. (프록시 우회는 다음 실행 시 반영)
+            </p>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input id="bypass-site-input" type="text" placeholder="예: example.com 또는 *.example.com" style="background: #0f172a; color: var(--text-main); border: 1px solid var(--border); padding: 9px 12px; border-radius: 8px; font-size: 13px; min-width: 240px;" onkeydown="if(event.key==='Enter') addBypassSiteFromInput()">
+            <button onclick="addBypassSiteFromInput()" class="btn" style="background: #f59e0b; color: #000; font-weight: bold;">+ 예외 추가</button>
+          </div>
+        </div>
+        <div id="bypass-sites-list" style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+          <span style="color: var(--text-muted); font-size: 13px;">목록 불러오는 중...</span>
+        </div>
+      </div>
+
       <!-- Card: Portable Chromium Management & Auto-Swapper -->
       <div class="banner" style="border-left: 4px solid var(--accent); background: linear-gradient(135deg, rgba(14,165,233,0.1), #1e293b);">
         <div style="flex: 1;">
@@ -454,6 +473,7 @@
           loadPortableStatus();
           loadCDPStatus();
           fetchDefaultBrowserStatus();
+          loadBypassSites();
         }
       } catch (e) {
         console.error('Tab switch init error:', e);
@@ -537,6 +557,61 @@
         } else {
           alert('보안 모드가 설정되었습니다.\n(원격 디버깅 포트 9222가 완전히 닫힙니다)\n\n다음에 브라우저를 다시 시작할 때 적용됩니다.');
         }
+      } catch (e) {}
+    }
+
+    function escapeHtml(str) {
+      return String(str).replace(/[&<>"']/g, s => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[s]));
+    }
+
+    function renderBypassSites(sites) {
+      const container = document.getElementById('bypass-sites-list');
+      if (!container) return;
+      if (!sites || sites.length === 0) {
+        container.innerHTML = `<span style="color: var(--text-muted); font-size: 13px;">등록된 예외 사이트가 없습니다. (로컬 주소 127.0.0.1 / localhost는 항상 직접 연결됩니다)</span>`;
+        return;
+      }
+      container.innerHTML = sites.map(site => {
+        const safe = escapeHtml(site);
+        return `
+          <span style="display: inline-flex; align-items: center; gap: 8px; background: #0f172a; border: 1px solid var(--border); padding: 6px 10px; border-radius: 6px; font-size: 13px;">
+            <code>${safe}</code>
+            <button onclick="removeBypassSite('${encodeURIComponent(site)}')" style="background: none; border: none; color: #f87171; cursor: pointer; font-weight: bold; font-size: 14px; line-height: 1;" title="예외 삭제">×</button>
+          </span>
+        `;
+      }).join('');
+    }
+
+    async function loadBypassSites() {
+      try {
+        const res = await fetch('/api/settings/bypass');
+        const data = await res.json();
+        renderBypassSites(data.sites || []);
+      } catch (e) {}
+    }
+
+    async function addBypassSiteFromInput() {
+      const input = document.getElementById('bypass-site-input');
+      const val = (input.value || '').trim();
+      if (!val) return;
+      try {
+        const res = await fetch('/api/settings/bypass/add?site=' + encodeURIComponent(val), { method: 'POST' });
+        const data = await res.json();
+        input.value = '';
+        renderBypassSites(data.sites || []);
+        alert('예외 사이트가 추가되었습니다: ' + val + '\n\n프록시 우회 적용을 위해 브라우저를 다시 시작해 주세요.');
+      } catch (e) {
+        alert('예외 추가 실패: ' + e);
+      }
+    }
+
+    async function removeBypassSite(encodedSite) {
+      try {
+        const res = await fetch('/api/settings/bypass/remove?site=' + encodedSite, { method: 'POST' });
+        const data = await res.json();
+        renderBypassSites(data.sites || []);
       } catch (e) {}
     }
 

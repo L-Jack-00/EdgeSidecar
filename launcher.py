@@ -15,7 +15,7 @@ if hasattr(sys.stdout, "reconfigure"):
         pass
 
 from config import PROFILE_DIR, PROXY_PORT, CDP_PORT
-from browser_detector import resolve_selected_browser, is_cdp_enabled
+from browser_detector import resolve_selected_browser, is_cdp_enabled, get_bypass_sites
 
 # Backward-compatible alias
 resolve_browser_binary = resolve_selected_browser
@@ -121,9 +121,14 @@ def launch_edge(profile_name: str = "default", headless: bool = False, extra_url
     if is_cdp_enabled():
         args.append(f"--remote-debugging-port={CDP_PORT}")
 
+    bypass_entries = ["localhost", "127.0.0.1"]
+    for site in get_bypass_sites():
+        if site and site not in bypass_entries:
+            bypass_entries.append(site)
+
     args.extend([
         f"--proxy-server=http://127.0.0.1:{PROXY_PORT}",
-        "--proxy-bypass-list=127.0.0.1;localhost",
+        f"--proxy-bypass-list={';'.join(bypass_entries)}",
         # Zero Bloatware & Telemetry flags & Instant Proxy Resolution
         "--disable-features=WinHttpProxyResolver,msEdgeSidebarV2,msHub,msHubApps,msEdgeShoppingAssistant,msEdgeCollections,EdgeAssetDelivery,msVisualSearch,msEdgeInlineCompose,msEdgeFre,msDefaultSearchEngineGroupPolicy,msEdgeDiscoverButton,EdgeRewards,EdgeSubstrate,EdgeAccessPoint,msEdgeStartupBoost,EdgeSync",
         "--disable-sync",
